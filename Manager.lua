@@ -4,7 +4,7 @@ if not TargetPage then warn("Module harus di-load dari ZonHub Index!") return en
 
 getgenv().ScriptVersion = "Manager v1.1" 
 
--- ========================================== --
+-- ========================================= --
 getgenv().DropDelay = 2     
 getgenv().StepDelay = 0.1   
 getgenv().GridSize = 4.5 
