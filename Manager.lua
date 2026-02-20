@@ -1,6 +1,6 @@
--- [[ KZOYZ HUB - MANAGER MODULE (INJECTED) ]] --
+-- [[ ZONHUB - MANAGER MODULE (INJECTED) ]] --
 local TargetPage = ...
-if not TargetPage then warn("Module harus di-load dari Kzoyz Index!") return end
+if not TargetPage then warn("Module harus di-load dari ZonHub Index!") return end
 
 getgenv().ScriptVersion = "Manager v1.1" 
 
