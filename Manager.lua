@@ -1,6 +1,6 @@
 -- [[ ZONHUB - MANAGER MODULE (INJECTED) ]] --
 local TargetPage = ...
-if not TargetPage then warn("Module harus di-load dari ZonHub Index!") return end
+if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
 getgenv().ScriptVersion = "Manager v1.1" 
 
