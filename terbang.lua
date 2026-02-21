@@ -1,143 +1,186 @@
---[[ 
-    ZONHUB MOBILE CLIENT
-    Fly + Speed + Auto Collect
-    Touch Friendly | Optimized
-]]--
+-- [[ ZONHUB - MOVEMENT & COLLECT MODULE ]] --
+local TargetPage = ...
+if not TargetPage then
+    warn("Module harus di-load dari ZONHUB Index!")
+    return
+end
 
--- ======================
--- GLOBAL CONFIG
--- ======================
-getgenv().ZONHUB = {
-    Fly = false,
-    Speed = false,
-    AutoCollect = false,
+getgenv().ScriptVersion = "ZONHUB Movement v1.0"
 
-    FlySpeed = 50,
-    WalkSpeed = 32
-}
+-- =========================
+-- CONFIG DEFAULT
+-- =========================
+getgenv().FlyEnabled = false
+getgenv().FlySpeed = 40
 
--- ======================
+getgenv().SpeedEnabled = false
+getgenv().WalkSpeedValue = 30
+
+getgenv().AutoCollect = false
+getgenv().CollectRadius = 20
+
+-- =========================
 -- SERVICES
--- ======================
+-- =========================
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UIS = game:GetService("UserInputService")
 local LP = Players.LocalPlayer
 
 local function GetChar()
-    local c = LP.Character or LP.CharacterAdded:Wait()
-    return c, c:WaitForChild("Humanoid"), c:WaitForChild("HumanoidRootPart")
+    local char = LP.Character or LP.CharacterAdded:Wait()
+    return char, char:WaitForChild("Humanoid"), char:WaitForChild("HumanoidRootPart")
 end
 
-local Char, Humanoid, HRP = GetChar()
-
+local Character, Humanoid, HRP = GetChar()
 LP.CharacterAdded:Connect(function()
-    Char, Humanoid, HRP = GetChar()
+    Character, Humanoid, HRP = GetChar()
 end)
 
--- ======================
--- FLY SYSTEM (MOBILE SAFE)
--- ======================
-local FlyConn
-local BV, BG
+-- =========================
+-- UI THEME (PAKAI YANG SUDAH ADA)
+-- =========================
+local Theme = {
+    Item = Color3.fromRGB(30, 40, 35),
+    Text = Color3.fromRGB(220, 255, 230),
+    Accent = Color3.fromRGB(60, 200, 120)
+}
 
-local function EnableFly()
-    if BV then return end
+-- =========================
+-- UI ELEMENTS (SAMA STYLE)
+-- =========================
+function CreateToggle(Parent, Text, Var)
+    local Btn = Instance.new("TextButton")
+    Btn.Parent = Parent
+    Btn.BackgroundColor3 = Theme.Item
+    Btn.Size = UDim2.new(1, -10, 0, 35)
+    Btn.Text = ""
+    Btn.AutoButtonColor = false
 
-    BV = Instance.new("BodyVelocity")
-    BG = Instance.new("BodyGyro")
+    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
 
-    BV.MaxForce = Vector3.new(9e8, 9e8, 9e8)
-    BG.MaxTorque = Vector3.new(9e8, 9e8, 9e8)
+    local Label = Instance.new("TextLabel", Btn)
+    Label.Text = Text
+    Label.TextColor3 = Theme.Text
+    Label.BackgroundTransparency = 1
+    Label.Size = UDim2.new(1, -50, 1, 0)
+    Label.Position = UDim2.new(0, 10, 0, 0)
+    Label.Font = Enum.Font.GothamSemibold
+    Label.TextSize = 12
+    Label.TextXAlignment = Left
 
-    BV.Parent = HRP
-    BG.Parent = HRP
+    local Dot = Instance.new("Frame", Btn)
+    Dot.Size = UDim2.new(0, 16, 0, 16)
+    Dot.Position = UDim2.new(1, -30, 0.5, -8)
+    Dot.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
+    Instance.new("UICorner", Dot).CornerRadius = UDim.new(1, 0)
 
-    FlyConn = RunService.RenderStepped:Connect(function()
-        if not getgenv().ZONHUB.Fly then return end
-
-        local cam = workspace.CurrentCamera
-        BG.CFrame = cam.CFrame
-
-        local moveDir = Humanoid.MoveDirection
-        BV.Velocity = (moveDir.Magnitude > 0 and moveDir.Unit or Vector3.zero) * getgenv().ZONHUB.FlySpeed
+    Btn.MouseButton1Click:Connect(function()
+        getgenv()[Var] = not getgenv()[Var]
+        Dot.BackgroundColor3 = getgenv()[Var] and Theme.Accent or Color3.fromRGB(90, 90, 90)
     end)
 end
 
-local function DisableFly()
-    if FlyConn then FlyConn:Disconnect() FlyConn = nil end
-    if BV then BV:Destroy() BV = nil end
-    if BG then BG:Destroy() BG = nil end
+function CreateSlider(Parent, Text, Min, Max, Default, Var)
+    getgenv()[Var] = Default
+
+    local Frame = Instance.new("Frame", Parent)
+    Frame.BackgroundColor3 = Theme.Item
+    Frame.Size = UDim2.new(1, -10, 0, 45)
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 6)
+
+    local Label = Instance.new("TextLabel", Frame)
+    Label.Text = Text .. ": " .. Default
+    Label.TextColor3 = Theme.Text
+    Label.BackgroundTransparency = 1
+    Label.Size = UDim2.new(1, -20, 0, 18)
+    Label.Position = UDim2.new(0, 10, 0, 2)
+    Label.Font = Enum.Font.GothamSemibold
+    Label.TextSize = 12
+    Label.TextXAlignment = Left
+
+    local Bar = Instance.new("TextButton", Frame)
+    Bar.Position = UDim2.new(0, 10, 0, 28)
+    Bar.Size = UDim2.new(1, -20, 0, 6)
+    Bar.Text = ""
+    Bar.AutoButtonColor = false
+    Bar.BackgroundColor3 = Color3.fromRGB(20, 25, 23)
+    Instance.new("UICorner", Bar).CornerRadius = UDim.new(1, 0)
+
+    local Fill = Instance.new("Frame", Bar)
+    Fill.BackgroundColor3 = Theme.Accent
+    Fill.Size = UDim2.new((Default - Min) / (Max - Min), 0, 1, 0)
+    Instance.new("UICorner", Fill).CornerRadius = UDim.new(1, 0)
+
+    Bar.InputBegan:Connect(function(input)
+        if input.UserInputType ~= Enum.UserInputType.Touch
+        and input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+
+        local x = math.clamp(
+            (input.Position.X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X,
+            0, 1
+        )
+        local value = math.floor(Min + (Max - Min) * x)
+        Fill.Size = UDim2.new(x, 0, 1, 0)
+        Label.Text = Text .. ": " .. value
+        getgenv()[Var] = value
+    end)
 end
 
--- ======================
--- SPEED SYSTEM (SMOOTH)
--- ======================
-RunService.Heartbeat:Connect(function()
-    if Humanoid then
-        Humanoid.WalkSpeed = getgenv().ZONHUB.Speed and getgenv().ZONHUB.WalkSpeed or 16
+-- =========================
+-- INJECT KE GUI
+-- =========================
+CreateToggle(TargetPage, "Fly", "FlyEnabled")
+CreateSlider(TargetPage, "Fly Speed", 10, 100, 40, "FlySpeed")
+
+CreateToggle(TargetPage, "Speed", "SpeedEnabled")
+CreateSlider(TargetPage, "Walk Speed", 16, 100, 30, "WalkSpeedValue")
+
+CreateToggle(TargetPage, "Auto Collect", "AutoCollect")
+CreateSlider(TargetPage, "Collect Radius", 1, 100, 20, "CollectRadius")
+
+-- =========================
+-- FLY LOGIC (HALUS)
+-- =========================
+local BV, BG
+
+RunService.RenderStepped:Connect(function()
+    if not HRP or not Humanoid then return end
+
+    -- SPEED
+    Humanoid.WalkSpeed = getgenv().SpeedEnabled and getgenv().WalkSpeedValue or 16
+
+    -- FLY
+    if getgenv().FlyEnabled then
+        if not BV then
+            BV = Instance.new("BodyVelocity", HRP)
+            BG = Instance.new("BodyGyro", HRP)
+            BV.MaxForce = Vector3.new(1e8,1e8,1e8)
+            BG.MaxTorque = Vector3.new(1e8,1e8,1e8)
+        end
+        BG.CFrame = workspace.CurrentCamera.CFrame
+        BV.Velocity = Humanoid.MoveDirection * getgenv().FlySpeed
+    else
+        if BV then BV:Destroy() BV = nil end
+        if BG then BG:Destroy() BG = nil end
     end
 end)
 
--- ======================
--- AUTO COLLECT (SAFE)
--- ======================
+-- =========================
+-- AUTO COLLECT (RADIUS)
+-- =========================
 task.spawn(function()
     while task.wait(0.4) do
-        if not getgenv().ZONHUB.AutoCollect then continue end
+        if not getgenv().AutoCollect or not HRP then continue end
 
         for _, v in ipairs(workspace:GetDescendants()) do
             if v:IsA("ProximityPrompt") and v.Enabled then
-                pcall(function()
-                    fireproximityprompt(v, 0)
-                end)
+                local part = v.Parent:IsA("BasePart") and v.Parent
+                if part and (part.Position - HRP.Position).Magnitude <= getgenv().CollectRadius then
+                    pcall(function()
+                        fireproximityprompt(v, 0)
+                    end)
+                end
             end
         end
     end
 end)
-
--- ======================
--- MOBILE TOUCH UI
--- ======================
-local Gui = Instance.new("ScreenGui", LP.PlayerGui)
-Gui.Name = "ZONHUB_MOBILE"
-Gui.ResetOnSpawn = false
-
-local function MakeButton(text, pos, callback)
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.fromOffset(140, 42)
-    b.Position = pos
-    b.Text = text
-    b.BackgroundColor3 = Color3.fromRGB(20, 30, 25)
-    b.TextColor3 = Color3.fromRGB(200, 255, 220)
-    b.Font = Enum.Font.GothamBold
-    b.TextSize = 14
-    b.Parent = Gui
-    b.AutoButtonColor = true
-
-    local c = Instance.new("UICorner", b)
-    c.CornerRadius = UDim.new(0, 8)
-
-    b.Activated:Connect(callback)
-    return b
-end
-
--- BUTTONS
-MakeButton("FLY", UDim2.new(0, 15, 0.55, 0), function()
-    getgenv().ZONHUB.Fly = not getgenv().ZONHUB.Fly
-    if getgenv().ZONHUB.Fly then
-        EnableFly()
-    else
-        DisableFly()
-    end
-end)
-
-MakeButton("SPEED", UDim2.new(0, 15, 0.63, 0), function()
-    getgenv().ZONHUB.Speed = not getgenv().ZONHUB.Speed
-end)
-
-MakeButton("AUTO", UDim2.new(0, 15, 0.71, 0), function()
-    getgenv().ZONHUB.AutoCollect = not getgenv().ZONHUB.AutoCollect
-end)
-
-print("ZONHUB MOBILE LOADED")
