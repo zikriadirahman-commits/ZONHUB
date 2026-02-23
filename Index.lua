@@ -1,92 +1,215 @@
--- [[ ZONHUB - INDEX LOADER V.0.60 (INJECT TO UI) ]] --
-
-getgenv().HubVersion = "v0.60" 
-
+-- ScreenGui
 local CoreGui = game:GetService("CoreGui")
-local UIS = game:GetService("UserInputService")
 local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
 local LP = Players.LocalPlayer
 
-pcall(function() if getgenv().zonIndexUI then getgenv().zonIndexUI:Destroy() end end)
+-- clear old
+pcall(function() if getgenv().ZonHubUI then getgenv().ZonHubUI:Destroy() end end)
 
--- [[ SETUP UI UTAMA ]] --
-local ScreenGui = Instance.new("ScreenGui"); ScreenGui.Name = "ZonHubIndex"; pcall(function() ScreenGui.Parent = CoreGui end); if not ScreenGui.Parent then ScreenGui.Parent = LP.PlayerGui end; ScreenGui.ResetOnSpawn = false; getgenv().ZonIndexUI = ScreenGui 
-local Theme = { Bg = Color3.fromRGB(20, 20, 20), Header = Color3.fromRGB(15, 15, 15), Item = Color3.fromRGB(40, 40, 40), Text = Color3.fromRGB(255, 255, 255), Purple = Color3.fromRGB(140, 80, 255), TabBg = Color3.fromRGB(25, 25, 25) }
+-- new ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ZonHubUI"
+pcall(function() screenGui.Parent = CoreGui end)
+if not screenGui.Parent then screenGui.Parent = LP:WaitForChild("PlayerGui") end
+screenGui.ResetOnSpawn = false
+getgenv().ZonHubUI = screenGui
 
-local KZBtn = Instance.new("TextButton", ScreenGui); KZBtn.BackgroundColor3 = Theme.Purple; KZBtn.Position = UDim2.new(0.1, 0, 0.1, 0); KZBtn.Size = UDim2.new(0, 50, 0, 50); KZBtn.Text = "KZ"; KZBtn.TextColor3 = Color3.new(1,1,1); KZBtn.Font = Enum.Font.GothamBlack; KZBtn.TextSize = 22; KZBtn.Visible = false; Instance.new("UICorner", KZBtn).CornerRadius = UDim.new(1, 0)
+-- theme/colors
+local Theme = {
+    Bg = Color3.fromRGB(30,30,30),
+    Header = Color3.fromRGB(20,20,20),
+    Btn = Color3.fromRGB(40,40,40),
+    TabActive = Color3.fromRGB(140,80,255),
+    Text = Color3.fromRGB(255,255,255),
+}
 
-local Main = Instance.new("Frame", ScreenGui); Main.BackgroundColor3 = Theme.Bg; Main.Position = UDim2.new(0.5, -250, 0.5, -160); Main.Size = UDim2.new(0, 500, 0, 320); Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 8); local MS = Instance.new("UIStroke", Main); MS.Color = Theme.Purple; MS.Thickness = 1.5; MS.Transparency = 0.5
+-- main frame
+local mainFrame = Instance.new("Frame", screenGui)
+mainFrame.Size = UDim2.new(0, 520, 0, 360)
+mainFrame.Position = UDim2.new(0.5, -260, 0.5, -180)
+mainFrame.BackgroundColor3 = Theme.Bg
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0,10)
+Instance.new("UIStroke", mainFrame).Color = Theme.TabActive
 
-local function MakeDraggable(frame, trigger) local dragging, dragInput, dragStart, startPos; trigger.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true; dragStart = input.Position; startPos = frame.Position; input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end) end end); trigger.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end end); UIS.InputChanged:Connect(function(input) if input == dragInput and dragging then local delta = input.Position - dragStart; frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end) end; MakeDraggable(Main, Main); MakeDraggable(KZBtn, KZBtn)
+-- header
+local header = Instance.new("Frame", mainFrame)
+header.Size = UDim2.new(1,0,0,40)
+header.Position = UDim2.new(0,0,0,0)
+header.BackgroundColor3 = Theme.Header
 
-local Header = Instance.new("Frame", Main); Header.BackgroundColor3 = Theme.Header; Header.Size = UDim2.new(1, 0, 0, 40); Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 8)
-local HeaderHide = Instance.new("Frame", Header); HeaderHide.BackgroundColor3 = Theme.Header; HeaderHide.Size = UDim2.new(1, 0, 0.5, 0); HeaderHide.Position = UDim2.new(0, 0, 0.5, 0); HeaderHide.BorderSizePixel = 0
-local Title = Instance.new("TextLabel", Header); Title.Text = " ZonHub " .. getgenv().HubVersion; Title.TextColor3 = Theme.Purple; Title.Font = Enum.Font.GothamBlack; Title.TextSize = 16; Title.Size = UDim2.new(0.5, 0, 1, 0); Title.BackgroundTransparency = 1; Title.TextXAlignment = Enum.TextXAlignment.Left
+local title = Instance.new("TextLabel", header)
+title.Text = "ZonHub v0.60"
+title.TextColor3 = Theme.TabActive
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+title.BackgroundTransparency = 1
+title.Size = UDim2.new(0.5,0,1,0)
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Position = UDim2.new(0,10,0,0)
 
-local DiscordBtn = Instance.new("TextButton", Header); DiscordBtn.Size = UDim2.new(0, 90, 0, 26); DiscordBtn.Position = UDim2.new(1, -135, 0, 7); DiscordBtn.Text = "Join Discord"; DiscordBtn.BackgroundColor3 = Color3.fromRGB(88, 101, 242); DiscordBtn.TextColor3 = Color3.new(1,1,1); DiscordBtn.Font = Enum.Font.GothamBold; DiscordBtn.TextSize = 12; Instance.new("UICorner", DiscordBtn).CornerRadius = UDim.new(0, 6); DiscordBtn.MouseButton1Click:Connect(function() pcall(function() setclipboard("https://discord.gg/Igbosqu's") end) end)
-local MinBtn = Instance.new("TextButton", Header); MinBtn.Size = UDim2.new(0, 30, 0, 26); MinBtn.Position = UDim2.new(1, -38, 0, 7); MinBtn.Text = "-"; MinBtn.BackgroundColor3 = Theme.Item; MinBtn.TextColor3 = Color3.new(1,1,1); MinBtn.Font = Enum.Font.GothamBold; MinBtn.TextSize = 18; Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 6)
-local function ToggleUI() Main.Visible = not Main.Visible; KZBtn.Visible = not Main.Visible; if KZBtn.Visible then KZBtn.Position = Main.Position else Main.Position = KZBtn.Position end end; MinBtn.MouseButton1Click:Connect(ToggleUI); KZBtn.MouseButton1Click:Connect(ToggleUI)
+-- close button
+local closeBtn = Instance.new("TextButton", header)
+closeBtn.Text = "X"
+closeBtn.Size = UDim2.new(0,30,0,26)
+closeBtn.Position = UDim2.new(1,-40,0,7)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextColor3 = Theme.Text
+closeBtn.BackgroundColor3 = Theme.Btn
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0,6)
 
--- [[ SISTEM TAB & INJECTION ]] --
-local TabContainer = Instance.new("Frame", Main); TabContainer.Size = UDim2.new(0, 130, 1, -40); TabContainer.Position = UDim2.new(0, 0, 0, 40); TabContainer.BackgroundColor3 = Theme.TabBg; TabContainer.BorderSizePixel = 0
-local TabListLayout = Instance.new("UIListLayout", TabContainer); TabListLayout.Padding = UDim.new(0, 5); TabListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+closeBtn.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
+end)
 
-local PageContainer = Instance.new("Frame", Main); PageContainer.Size = UDim2.new(1, -140, 1, -50); PageContainer.Position = UDim2.new(0, 135, 0, 45); PageContainer.BackgroundTransparency = 1
-
-local Tabs = {}; local Pages = {}
-
-local function CreateAutoLoadTab(TabName, DescText, LoadLink)
-    local TBtn = Instance.new("TextButton", TabContainer); TBtn.Size = UDim2.new(0.9, 0, 0, 35); TBtn.BackgroundColor3 = Theme.Item; TBtn.Text = TabName; TBtn.TextColor3 = Theme.Text; TBtn.Font = Enum.Font.GothamBold; TBtn.TextSize = 12; Instance.new("UICorner", TBtn).CornerRadius = UDim.new(0, 6)
-    
-    -- Ganti jadi ScrollingFrame biar UI yang di-inject bisa di-scroll
-    local Page = Instance.new("ScrollingFrame", PageContainer); Page.Size = UDim2.new(1, 0, 1, 0); Page.BackgroundTransparency = 1; Page.Visible = false; Page.BorderSizePixel = 0; Page.ScrollBarThickness = 2; Page.ScrollBarImageColor3 = Theme.Purple
-    local PageLayout = Instance.new("UIListLayout", Page); PageLayout.Padding = UDim.new(0, 6); PageLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    
-    local LTitle = Instance.new("TextLabel", Page); LTitle.Size = UDim2.new(1,0,0,25); LTitle.BackgroundTransparency = 1; LTitle.Text = TabName .. " Module"; LTitle.TextColor3 = Theme.Purple; LTitle.Font = Enum.Font.GothamBlack; LTitle.TextSize = 16; LTitle.TextXAlignment = Enum.TextXAlignment.Left
-    local LDesc = Instance.new("TextLabel", Page); LDesc.Size = UDim2.new(1,0,0,30); LDesc.BackgroundTransparency = 1; LDesc.Text = DescText; LDesc.TextColor3 = Color3.fromRGB(180,180,180); LDesc.Font = Enum.Font.GothamSemibold; LDesc.TextSize = 11; LDesc.TextWrapped = true; LDesc.TextXAlignment = Enum.TextXAlignment.Left; LDesc.TextYAlignment = Enum.TextYAlignment.Top
-    local Div = Instance.new("Frame", Page); Div.Size = UDim2.new(1,0,0,1); Div.BackgroundColor3 = Theme.Item; Div.BorderSizePixel = 0
-    
-    local StatusLabel = Instance.new("TextLabel", Page); StatusLabel.Size = UDim2.new(1,0,0,30); StatusLabel.BackgroundTransparency = 1; StatusLabel.Text = "Klik tab untuk memuat module..."; StatusLabel.TextColor3 = Theme.Text; StatusLabel.Font = Enum.Font.GothamBold; StatusLabel.TextSize = 12
-    
-    local isLoaded = false 
-    
-    TBtn.MouseButton1Click:Connect(function()
-        for _, p in pairs(Pages) do p.Visible = false end
-        for _, t in pairs(Tabs) do t.BackgroundColor3 = Theme.Item; t.TextColor3 = Theme.Text end
-        Page.Visible = true; TBtn.BackgroundColor3 = Theme.Purple; TBtn.TextColor3 = Color3.new(1,1,1)
-        
-        if not isLoaded and LoadLink ~= "" then
-            StatusLabel.Text = "⏳ Sedang mengambil script..."
-            StatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
-            isLoaded = true 
-            
-            task.spawn(function()
-                local scriptCode = game:HttpGet(LoadLink)
-                local func, compileErr = loadstring(scriptCode)
-                
-                if func then
-                    local success, runErr = pcall(function()
-                        func(Page) -- [PENTING] Mengirimkan 'Page' ke script GitHub untuk diisi UI
-                    end)
-                    
-                    if success then
-                        StatusLabel:Destroy() -- Hapus tulisan loading biar rapi
-                    else
-                        StatusLabel.Text = "❌ Gagal Jalan: " .. tostring(runErr)
-                        StatusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
-                    end
-                else
-                    StatusLabel.Text = "❌ Gagal Load Link Raw!"
-                    StatusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+-- draggable
+local function makeDraggable(frame, dragArea)
+    local dragging, dragInput, startPos, startMouse
+    dragArea.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            startMouse = input.Position
+            startPos = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
                 end
             end)
         end
     end)
-    table.insert(Tabs, TBtn); table.insert(Pages, Page); return Page, TBtn
+    dragArea.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+    UIS.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - startMouse
+            frame.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset+delta.X,
+                startPos.Y.Scale, startPos.Y.Offset+delta.Y
+            )
+        end
+    end)
+end
+makeDraggable(mainFrame, header)
+
+-- sidebar (tabs)
+local sidebar = Instance.new("Frame", mainFrame)
+sidebar.Size = UDim2.new(0,140,1,-40)
+sidebar.Position = UDim2.new(0,0,0,40)
+sidebar.BackgroundColor3 = Theme.Header
+
+local tabList = Instance.new("UIListLayout", sidebar)
+tabList.Padding = UDim.new(0,8)
+tabList.SortOrder = Enum.SortOrder.LayoutOrder
+tabList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+-- content pages container
+local pageHolder = Instance.new("Frame", mainFrame)
+pageHolder.Size = UDim2.new(1,-150,1,-50)
+pageHolder.Position = UDim2.new(0,150,0,45)
+pageHolder.BackgroundTransparency = 1
+
+-- tab/page storage
+local Tabs = {}
+local Pages = {}
+
+-- create tab function
+local function createTab(name, description, scriptUrl)
+    local btn = Instance.new("TextButton", sidebar)
+    btn.Size = UDim2.new(0.9,0,0,35)
+    btn.BackgroundColor3 = Theme.Btn
+    btn.Text = name
+    btn.TextColor3 = Theme.Text
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextSize = 14
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+
+    local page = Instance.new("ScrollingFrame", pageHolder)
+    page.Size = UDim2.new(1,0,1,0)
+    page.Visible = false
+    page.CanvasSize = UDim2.new(0,0)
+    page.ScrollBarThickness = 4
+    local layout = Instance.new("UIListLayout", page)
+    layout.Padding = UDim.new(0,6)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    -- header area inside page
+    local titleLabel = Instance.new("TextLabel", page)
+    titleLabel.Size = UDim2.new(1,0,0,25)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = name.." Module"
+    titleLabel.TextColor3 = Theme.TabActive
+    titleLabel.Font = Enum.Font.GothamBlack
+    titleLabel.TextSize = 16
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local descLabel = Instance.new("TextLabel", page)
+    descLabel.Size = UDim2.new(1,0,0,30)
+    descLabel.BackgroundTransparency = 1
+    descLabel.Text = description or ""
+    descLabel.TextColor3 = Color3.fromRGB(180,180,180)
+    descLabel.TextSize = 11
+    descLabel.TextXAlignment = Enum.TextXAlignment.Left
+    descLabel.TextWrapped = true
+
+    local statusLabel = Instance.new("TextLabel", page)
+    statusLabel.Size = UDim2.new(1,0,0,25)
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Text = "Click tab to load script..."
+    statusLabel.TextColor3 = Theme.Text
+    statusLabel.Font = Enum.Font.Gotham
+    statusLabel.TextSize = 14
+
+    -- load script when clicked
+    btn.MouseButton1Click:Connect(function()
+        for _, v in pairs(Pages) do v.Visible = false end
+        for _, tBtn in pairs(Tabs) do
+            tBtn.BackgroundColor3 = Theme.Btn
+            tBtn.TextColor3 = Theme.Text
+        end
+
+        page.Visible = true
+        btn.BackgroundColor3 = Theme.TabActive
+        btn.TextColor3 = Color3.fromRGB(255,255,255)
+
+        if scriptUrl and scriptUrl ~= "" then
+            statusLabel.Text = "Loading script..."
+            task.spawn(function()
+                local ok, data = pcall(function()
+                    return game:HttpGet(scriptUrl, true)
+                end)
+                if ok and data then
+                    local func, err = loadstring(data)
+                    if func then
+                        local _ok2, err2 = pcall(func, page)
+                        if _ok2 then
+                            statusLabel:Destroy()
+                        else
+                            statusLabel.Text = "Error execute: "..tostring(err2)
+                        end
+                    else
+                        statusLabel.Text = "Compile error"
+                    end
+                else
+                    statusLabel.Text = "Failed to get script"
+                end
+            end)
+        end
+    end)
+
+    table.insert(Tabs, btn)
+    table.insert(Pages, page)
 end
 
-CreateAutoLoadTab("Pabrik", "Memuat otomatis sistem Pabrik.", "https://raw.githubusercontent.com/Koziz/CAW-SCRIPT/refs/heads/main/Pabrik.lua")
-CreateAutoLoadTab("Auto Farm", "Sistem farming resource (Kayu, Batu).", "https://raw.githubusercontent.com/Koziz/CAW-SCRIPT/refs/heads/main/Autofarm.lua")
-CreateAutoLoadTab("Manager", "Sistem Inventory & Sortir Barang.", "https://raw.githubusercontent.com/zikriadirahman-commits/ZONHUB/refs/heads/main/Manager.lua")
-CreateAutoLoadTab("Ability", "Sistem Terbang Dll.", "https://raw.githubusercontent.com/zikriadirahman-commits/ZONHUB/refs/heads/main/terbang.lua")
+-- add your tabs (example using old system)
+createTab("Manager","Manage items etc","https://raw.githubusercontent.com/zikriadirahman-commits/ZONHUB/refs/heads/main/Manager.lua")
+createTab("Auto Farm","Sistem farming resource Kayu, Batu","https://raw.githubusercontent.com/Koziz/CAW-SCRIPT/refs/heads/main/Autofarm.lua")
+createTab("Ability","Fly / other systems","https://raw.githubusercontent.com/zikriadirahman-commits/ZONHUB/refs/heads/main/terbang.lua")
+-- TODO: add more tabs like old hub but adapted
 
+-- open first tab by default
+if #Tabs > 0 then
+    Tabs[1]:MouseButton1Click()
+end
