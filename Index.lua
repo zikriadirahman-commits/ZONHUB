@@ -1,191 +1,174 @@
 -- SERVICES
 local Players = game:GetService("Players")
-local UIS = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
+local UIS = game:GetService("UserInputService")
 local LP = Players.LocalPlayer
 
 -- CLEAN OLD
 pcall(function()
-    if getgenv().ZonHubUI then
-        getgenv().ZonHubUI:Destroy()
+    if getgenv().ZONHUB then
+        getgenv().ZONHUB:Destroy()
     end
 end)
 
 -- SCREEN GUI
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ZonHubUI"
+ScreenGui.Name = "ZONHUB"
 ScreenGui.ResetOnSpawn = false
 pcall(function() ScreenGui.Parent = CoreGui end)
 if not ScreenGui.Parent then
     ScreenGui.Parent = LP:WaitForChild("PlayerGui")
 end
-getgenv().ZonHubUI = ScreenGui
+getgenv().ZONHUB = ScreenGui
 
--- THEME
-local Theme = {
-    Main = Color3.fromRGB(30,30,30),
-    Header = Color3.fromRGB(20,20,20),
-    Button = Color3.fromRGB(40,40,40),
-    Accent = Color3.fromRGB(145, 90, 255), -- ungu awal
-    Text = Color3.fromRGB(240,240,240)
-}
+--------------------------------------------------
+-- THEME (ASLI)
+--------------------------------------------------
+local ACCENT = Color3.fromRGB(145, 90, 255)
 
-------------------------------------------------
+--------------------------------------------------
 -- MAIN FRAME
-------------------------------------------------
+--------------------------------------------------
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 540, 0, 380)
-Main.Position = UDim2.new(0.5, -270, 0.5, -190)
-Main.BackgroundColor3 = Theme.Main
-Main.Visible = true
+Main.Size = UDim2.new(0, 520, 0, 340)
+Main.Position = UDim2.new(0.5, -260, 0.5, -170)
+Main.BackgroundColor3 = Color3.fromRGB(30,30,30)
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0,10)
-Instance.new("UIStroke", Main).Color = Theme.Accent
+Instance.new("UIStroke", Main).Color = ACCENT
 
-------------------------------------------------
+--------------------------------------------------
 -- HEADER
-------------------------------------------------
+--------------------------------------------------
 local Header = Instance.new("Frame", Main)
-Header.Size = UDim2.new(1,0,0,42)
-Header.BackgroundColor3 = Theme.Header
-Instance.new("UICorner", Header).CornerRadius = UDim.new(0,10)
+Header.Size = UDim2.new(1,0,0,40)
+Header.BackgroundColor3 = Color3.fromRGB(20,20,20)
 
 local Title = Instance.new("TextLabel", Header)
 Title.Text = "ZONHUB v0.60"
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 16
-Title.TextColor3 = Theme.Accent
+Title.TextColor3 = ACCENT
 Title.BackgroundTransparency = 1
-Title.Size = UDim2.new(1,-120,1,0)
+Title.Size = UDim2.new(1,-90,1,0)
 Title.Position = UDim2.new(0,12,0,0)
 Title.TextXAlignment = Left
 
 -- MINIMIZE
-local MinBtn = Instance.new("TextButton", Header)
-MinBtn.Text = "-"
-MinBtn.Font = Enum.Font.GothamBold
-MinBtn.TextSize = 22
-MinBtn.Size = UDim2.new(0,30,0,26)
-MinBtn.Position = UDim2.new(1,-74,0,8)
-MinBtn.BackgroundColor3 = Theme.Button
-MinBtn.TextColor3 = Theme.Text
-Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0,6)
+local Min = Instance.new("TextButton", Header)
+Min.Text = "-"
+Min.Font = Enum.Font.GothamBold
+Min.TextSize = 22
+Min.Size = UDim2.new(0,30,0,26)
+Min.Position = UDim2.new(1,-70,0,7)
+Min.BackgroundColor3 = Color3.fromRGB(45,45,45)
+Min.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", Min).CornerRadius = UDim.new(0,6)
 
 -- CLOSE
-local CloseBtn = Instance.new("TextButton", Header)
-CloseBtn.Text = "X"
-CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.TextSize = 16
-CloseBtn.Size = UDim2.new(0,30,0,26)
-CloseBtn.Position = UDim2.new(1,-38,0,8)
-CloseBtn.BackgroundColor3 = Theme.Button
-CloseBtn.TextColor3 = Theme.Text
-Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0,6)
+local Close = Instance.new("TextButton", Header)
+Close.Text = "X"
+Close.Font = Enum.Font.GothamBold
+Close.TextSize = 14
+Close.Size = UDim2.new(0,30,0,26)
+Close.Position = UDim2.new(1,-36,0,7)
+Close.BackgroundColor3 = Color3.fromRGB(45,45,45)
+Close.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", Close).CornerRadius = UDim.new(0,6)
 
-------------------------------------------------
--- SIDEBAR
-------------------------------------------------
-local Sidebar = Instance.new("Frame", Main)
-Sidebar.Position = UDim2.new(0,0,0,42)
-Sidebar.Size = UDim2.new(0,150,1,-42)
-Sidebar.BackgroundColor3 = Theme.Header
+--------------------------------------------------
+-- TAB FRAME (SISTEM ASLI)
+--------------------------------------------------
+local TabFrame = Instance.new("Frame", Main)
+TabFrame.Position = UDim2.new(0,0,0,40)
+TabFrame.Size = UDim2.new(0,140,1,-40)
+TabFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 
-local SideLayout = Instance.new("UIListLayout", Sidebar)
-SideLayout.Padding = UDim.new(0,8)
-SideLayout.HorizontalAlignment = Center
+local TabLayout = Instance.new("UIListLayout", TabFrame)
+TabLayout.Padding = UDim.new(0,6)
+TabLayout.HorizontalAlignment = Center
 
-------------------------------------------------
--- CONTENT (SCROLLABLE)
-------------------------------------------------
-local Pages = Instance.new("Frame", Main)
-Pages.Position = UDim2.new(0,150,0,42)
-Pages.Size = UDim2.new(1,-150,1,-42)
-Pages.BackgroundTransparency = 1
+--------------------------------------------------
+-- CONTENT FRAME (SCROLLABLE)
+--------------------------------------------------
+local Content = Instance.new("ScrollingFrame", Main)
+Content.Position = UDim2.new(0,140,0,40)
+Content.Size = UDim2.new(1,-140,1,-40)
+Content.CanvasSize = UDim2.new(0,0)
+Content.ScrollBarThickness = 4
+Content.BackgroundTransparency = 1
 
-------------------------------------------------
+local ContentLayout = Instance.new("UIListLayout", Content)
+ContentLayout.Padding = UDim.new(0,6)
+
+--------------------------------------------------
 -- MINIMIZED LOGO
-------------------------------------------------
-local MiniLogo = Instance.new("TextButton", ScreenGui)
-MiniLogo.Size = UDim2.new(0,60,0,60)
-MiniLogo.Position = UDim2.new(0,20,0.5,-30)
-MiniLogo.BackgroundColor3 = Theme.Main
-MiniLogo.Text = "ZON"
-MiniLogo.Font = Enum.Font.GothamBlack
-MiniLogo.TextSize = 18
-MiniLogo.TextColor3 = Theme.Accent
-MiniLogo.Visible = false
-Instance.new("UICorner", MiniLogo).CornerRadius = UDim.new(1,0)
-Instance.new("UIStroke", MiniLogo).Color = Theme.Accent
+--------------------------------------------------
+local Mini = Instance.new("TextButton", ScreenGui)
+Mini.Size = UDim2.new(0,58,0,58)
+Mini.Position = UDim2.new(0,20,0.5,-29)
+Mini.Text = "ZON"
+Mini.Font = Enum.Font.GothamBlack
+Mini.TextSize = 18
+Mini.TextColor3 = ACCENT
+Mini.BackgroundColor3 = Color3.fromRGB(30,30,30)
+Mini.Visible = false
+Instance.new("UICorner", Mini).CornerRadius = UDim.new(1,0)
+Instance.new("UIStroke", Mini).Color = ACCENT
 
-------------------------------------------------
--- TAB SYSTEM
-------------------------------------------------
-local Tabs = {}
-local PagesList = {}
-
-local function CreateTab(name, url)
-    local Tab = Instance.new("TextButton", Sidebar)
-    Tab.Size = UDim2.new(0.9,0,0,34)
-    Tab.Text = name
-    Tab.Font = Enum.Font.Gotham
-    Tab.TextSize = 14
-    Tab.BackgroundColor3 = Theme.Button
-    Tab.TextColor3 = Theme.Text
-    Instance.new("UICorner", Tab).CornerRadius = UDim.new(0,6)
-
-    local Page = Instance.new("ScrollingFrame", Pages)
-    Page.Size = UDim2.new(1,0,1,0)
-    Page.ScrollBarThickness = 4
-    Page.CanvasSize = UDim2.new(0,0)
-    Page.Visible = false
-    Page.BackgroundTransparency = 1
-
-    local Layout = Instance.new("UIListLayout", Page)
-    Layout.Padding = UDim.new(0,8)
-
-    Tab.MouseButton1Click:Connect(function()
-        for _,p in pairs(PagesList) do p.Visible = false end
-        for _,t in pairs(Tabs) do t.BackgroundColor3 = Theme.Button end
-
-        Page.Visible = true
-        Tab.BackgroundColor3 = Theme.Accent
-
-        if url then
-            task.spawn(function()
-                pcall(function()
-                    loadstring(game:HttpGet(url,true))()
-                end)
-            end)
-        end
-    end)
-
-    table.insert(Tabs, Tab)
-    table.insert(PagesList, Page)
-end
-
-------------------------------------------------
--- BUTTON LOGIC
-------------------------------------------------
-MinBtn.MouseButton1Click:Connect(function()
+--------------------------------------------------
+-- MINIMIZE / CLOSE LOGIC
+--------------------------------------------------
+Min.MouseButton1Click:Connect(function()
     Main.Visible = false
-    MiniLogo.Visible = true
+    Mini.Visible = true
 end)
 
-MiniLogo.MouseButton1Click:Connect(function()
+Mini.MouseButton1Click:Connect(function()
     Main.Visible = true
-    MiniLogo.Visible = false
+    Mini.Visible = false
 end)
 
-CloseBtn.MouseButton1Click:Connect(function()
+Close.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
-------------------------------------------------
--- EXAMPLE TABS (sesuai sistem lama)
-------------------------------------------------
-CreateTab("Manager", "https://raw.githubusercontent.com/zikriadirahman-commits/ZONHUB/refs/heads/main/Manager.lua")
-CreateTab("Autofarm", "https://raw.githubusercontent.com/Koziz/CAW-SCRIPT/refs/heads/main/Autofarm.lua")
-CreateTab("Pabrik", "hhttps://raw.githubusercontent.com/Koziz/CAW-SCRIPT/refs/heads/main/Pabrik.lua")
-CreateTab("Ability", "https://raw.githubusercontent.com/zikriadirahman-commits/ZONHUB/refs/heads/main/terbang.lua")
+--------------------------------------------------
+-- 🔴 SISTEM TAB ASLI (DARI INDEX.LUA)
+--------------------------------------------------
+local Tabs = {
+    {
+        Name = "Manager",
+        Url = "https://raw.githubusercontent.com/zikriadirahman-commits/ZONHUB/refs/heads/main/Manager.lua"
+    },
+    {
+        Name = "Autofarm",
+        Url = "https://raw.githubusercontent.com/Koziz/CAW-SCRIPT/refs/heads/main/Autofarm.lua"
+    }
+}
 
+for _, tab in ipairs(Tabs) do
+    local Button = Instance.new("TextButton", TabFrame)
+    Button.Size = UDim2.new(1,-12,0,30)
+    Button.Text = tab.Name
+    Button.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    Button.TextColor3 = Color3.new(1,1,1)
+    Button.Font = Enum.Font.Gotham
+    Button.TextSize = 14
+    Instance.new("UICorner", Button).CornerRadius = UDim.new(0,6)
 
-if Tabs[1] then Tabs[1]:MouseButton1Click() end
+    Button.MouseButton1Click:Connect(function()
+        for _, v in ipairs(Content:GetChildren()) do
+            if v:IsA("Frame") or v:IsA("TextButton") then
+                v:Destroy()
+            end
+        end
+
+        local ok, result = pcall(function()
+            return game:HttpGet(tab.Url)
+        end)
+
+        if ok then
+            loadstring(result)()
+        end
+    end)
+end
