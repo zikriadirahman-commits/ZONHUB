@@ -1,162 +1,203 @@
 -- SERVICES
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
-local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local LP = Players.LocalPlayer
 
--- CLEANING PREVIOUS UI
-pcall(function()
-    if getgenv().ZONHUB then getgenv().ZONHUB:Destroy() end
-end)
+-- CLEAN OLD GUI
+if getgenv().ZONHUB then
+    getgenv().ZONHUB:Destroy()
+end
 
--- MAIN SETTINGS
-local ACCENT_COLOR = Color3.fromRGB(0, 170, 255) -- Warna Biru Modern
-local BG_COLOR = Color3.fromRGB(20, 20, 20)
-local SIDEBAR_COLOR = Color3.fromRGB(25, 25, 25)
-
--- CREATE SCREEN GUI
+-- SCREEN GUI
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ZONHUB_REBORN"
+ScreenGui.Name = "ZONHUB_V2"
 ScreenGui.ResetOnSpawn = false
 pcall(function() ScreenGui.Parent = CoreGui end)
 if not ScreenGui.Parent then ScreenGui.Parent = LP:WaitForChild("PlayerGui") end
 getgenv().ZONHUB = ScreenGui
 
+-- THEME COLORS
+local BG_COLOR = Color3.fromRGB(25, 25, 25)
+local ACCENT = Color3.fromRGB(145, 90, 255)
+local TEXT_COLOR = Color3.fromRGB(240, 240, 240)
+
+--------------------------------------------------
+-- DRAG SYSTEM FUNCTION
+--------------------------------------------------
+local function MakeDraggable(topbarobject, object)
+    local dragging, dragInput, dragStart, startPos
+    topbarobject.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = object.Position
+        end
+    end)
+    topbarobject.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input == dragInput then
+            local delta = input.Position - dragStart
+            object.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+--------------------------------------------------
 -- MAIN FRAME
+--------------------------------------------------
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 550, 0, 350)
-Main.Position = UDim2.new(0.5, -275, 0.5, -175)
+Main.Size = UDim2.new(0, 500, 0, 320)
+Main.Position = UDim2.new(0.5, -250, 0.5, -160)
 Main.BackgroundColor3 = BG_COLOR
 Main.BorderSizePixel = 0
-Main.ClipsDescendants = true
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 8)
+Instance.new("UIStroke", Main).Color = ACCENT
 
-local MainCorner = Instance.new("UICorner", Main)
-MainCorner.CornerRadius = UDim.new(0, 8)
+-- MINIMIZE LOGO (ZON BUTTON)
+local MinBtn = Instance.new("TextButton", ScreenGui)
+MinBtn.Name = "ZON_LOGO"
+MinBtn.Size = UDim2.new(0, 50, 0, 50)
+MinBtn.Position = UDim2.new(0.05, 0, 0.1, 0)
+MinBtn.BackgroundColor3 = ACCENT
+MinBtn.Text = "ZON"
+MinBtn.Font = Enum.Font.GothamBold
+MinBtn.TextColor3 = Color3.new(1,1,1)
+MinBtn.TextSize = 16
+MinBtn.Visible = false
+Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(1, 0)
+Instance.new("UIStroke", MinBtn).Thickness = 2
 
-local MainStroke = Instance.new("UIStroke", Main)
-MainStroke.Thickness = 1.5
-MainStroke.Color = ACCENT_COLOR
-MainStroke.Transparency = 0.5
+--------------------------------------------------
+-- HEADER & CONTROLS
+--------------------------------------------------
+local Header = Instance.new("Frame", Main)
+Header.Size = UDim2.new(1, 0, 0, 35)
+Header.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 8)
+MakeDraggable(Header, Main)
 
--- SIDEBAR (TAB FRAME)
-local Sidebar = Instance.new("Frame", Main)
-Sidebar.Size = UDim2.new(0, 160, 1, 0)
-Sidebar.BackgroundColor3 = SIDEBAR_COLOR
-Sidebar.BorderSizePixel = 0
-
-local SidebarCorner = Instance.new("UICorner", Sidebar)
-SidebarCorner.CornerRadius = UDim.new(0, 8)
-
-local Title = Instance.new("TextLabel", Sidebar)
-Title.Text = "ZONHUB"
-Title.Size = UDim2.new(1, 0, 0, 50)
-Title.BackgroundTransparency = 1
+local Title = Instance.new("TextLabel", Header)
+Title.Text = "ZONHUB V2"
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 20
-Title.TextColor3 = ACCENT_COLOR
+Title.TextSize = 15
+Title.TextColor3 = ACCENT
+Title.Size = UDim2.new(0, 100, 1, 0)
+Title.Position = UDim2.new(0, 12, 0, 0)
+Title.BackgroundTransparency = 1
+Title.TextXAlignment = Enum.TextXAlignment.Left
 
-local TabContainer = Instance.new("ScrollingFrame", Sidebar)
-TabContainer.Size = UDim2.new(1, 0, 1, -60)
-TabContainer.Position = UDim2.new(0, 0, 0, 60)
-TabContainer.BackgroundTransparency = 1
-TabContainer.ScrollBarThickness = 0
-TabContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+-- CLOSE BUTTON
+local Close = Instance.new("TextButton", Header)
+Close.Size = UDim2.new(0, 30, 0, 30)
+Close.Position = UDim2.new(1, -35, 0, 2)
+Close.Text = "X"
+Close.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+Close.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", Close).CornerRadius = UDim.new(0, 5)
 
-local TabListLayout = Instance.new("UIListLayout", TabContainer)
-TabListLayout.Padding = UDim.new(0, 5)
-TabListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+-- MINIMIZE BUTTON
+local Mini = Instance.new("TextButton", Header)
+Mini.Size = UDim2.new(0, 30, 0, 30)
+Mini.Position = UDim2.new(1, -70, 0, 2)
+Mini.Text = "-"
+Mini.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+Mini.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", Mini).CornerRadius = UDim.new(0, 5)
 
--- CONTENT FRAME
+-- LOGIC MIN/CLOSE
+Close.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
+Mini.MouseButton1Click:Connect(function() 
+    Main.Visible = false 
+    MinBtn.Visible = true 
+end)
+MinBtn.MouseButton1Click:Connect(function() 
+    Main.Visible = true 
+    MinBtn.Visible = false 
+end)
+
+--------------------------------------------------
+-- SIDEBAR (TABS)
+--------------------------------------------------
+local Sidebar = Instance.new("Frame", Main)
+Sidebar.Position = UDim2.new(0, 5, 0, 40)
+Sidebar.Size = UDim2.new(0, 120, 1, -45)
+Sidebar.BackgroundColor3 = Color3.fromRGB(30,30,30)
+Instance.new("UICorner", Sidebar)
+
+local TabList = Instance.new("UIListLayout", Sidebar)
+TabList.Padding = UDim.new(0, 5)
+TabList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+--------------------------------------------------
+-- CONTENT AREA (CONTAINER)
+--------------------------------------------------
 local Content = Instance.new("ScrollingFrame", Main)
 Content.Name = "Content"
-Content.Position = UDim2.new(0, 170, 0, 10)
-Content.Size = UDim2.new(1, -180, 1, -20)
+Content.Position = UDim2.new(0, 130, 0, 40)
+Content.Size = UDim2.new(1, -135, 1, -45)
 Content.BackgroundTransparency = 1
+Content.CanvasSize = UDim2.new(0, 0, 0, 0)
 Content.ScrollBarThickness = 2
-Content.ScrollBarImageColor3 = ACCENT_COLOR
 
-getgenv().ZONHUB_CONTENT = Content -- Penting untuk script eksternal
+local ContentLayout = Instance.new("UIListLayout", Content)
+ContentLayout.Padding = UDim.new(0, 8)
+ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
--- TAB SYSTEM LOGIC
+--------------------------------------------------
+-- TAB LOADER SYSTEM
+--------------------------------------------------
 local Tabs = {
-    { Name = "Manager", Url = "https://raw.githubusercontent.com/zikriadirahman-commits/ZONHUB/refs/heads/main/Manager.lua", Icon = "rbxassetid://10734945610" },
-    { Name = "Ability", Url = "https://raw.githubusercontent.com/zikriadirahman-commits/ZONHUB/refs/heads/main/terbang.lua", Icon = "rbxassetid://10734944510" }
+    { Name = "Manager", Url = "https://raw.githubusercontent.com/zikriadirahman-commits/ZONHUB/refs/heads/main/Manager.lua" },
+    { Name = "Ability", Url = "https://raw.githubusercontent.com/zikriadirahman-commits/ZONHUB/refs/heads/main/terbang.lua" }
 }
 
-local function CreateTab(info)
-    local TabBtn = Instance.new("TextButton", TabContainer)
-    TabBtn.Size = UDim2.new(0.9, 0, 0, 35)
-    TabBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    TabBtn.Text = "  " .. info.Name
-    TabBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    TabBtn.Font = Enum.Font.GothamSemibold
+for _, tab in ipairs(Tabs) do
+    local TabBtn = Instance.new("TextButton", Sidebar)
+    TabBtn.Size = UDim2.new(0, 110, 0, 35)
+    TabBtn.Text = tab.Name
+    TabBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    TabBtn.TextColor3 = Color3.new(1,1,1)
+    TabBtn.Font = Enum.Font.Gotham
     TabBtn.TextSize = 13
-    TabBtn.TextXAlignment = Enum.TextXAlignment.Left
-    TabBtn.AutoButtonColor = false
+    Instance.new("UICorner", TabBtn)
 
-    local BtnCorner = Instance.new("UICorner", TabBtn)
-    BtnCorner.CornerRadius = UDim.new(0, 6)
-    
-    -- Hover Animation
-    TabBtn.MouseEnter:Connect(function()
-        TweenService:Create(TabBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(45, 45, 45)}):Play()
-    end)
-    TabBtn.MouseLeave:Connect(function()
-        TweenService:Create(TabBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(35, 35, 35)}):Play()
-    end)
-
-    -- Click Logic
     TabBtn.MouseButton1Click:Connect(function()
         -- Clear Content
         for _, v in ipairs(Content:GetChildren()) do
             if not v:IsA("UIListLayout") then v:Destroy() end
         end
 
-        -- Visual Feedback
-        for _, other in ipairs(TabContainer:GetChildren()) do
-            if other:IsA("TextButton") then
-                other.TextColor3 = Color3.fromRGB(200, 200, 200)
-            end
-        end
-        TabBtn.TextColor3 = ACCENT_COLOR
+        -- Fix Content Visibility: Global Parent
+        getgenv().ZONHUB_CONTENT = Content
 
-        -- Load Script
-        local success, scriptData = pcall(function()
-            return game:HttpGet(info.Url)
-        end)
-
+        local success, data = pcall(function() return game:HttpGet(tab.Url) end)
         if success then
-            local func = loadstring(scriptData)
+            local func, err = loadstring(data)
             if func then
-                task.spawn(func)
+                -- Menjalankan content script
+                func()
+                -- Update canvas size agar bisa di scroll jika konten banyak
+                Content.CanvasSize = UDim2.new(0, 0, 0, ContentLayout.AbsoluteContentSize.Y + 20)
+            else
+                warn("Error loading tab: " .. tostring(err))
             end
         end
     end)
 end
 
--- Load all tabs
-for _, tabData in ipairs(Tabs) do
-    CreateTab(tabData)
-end
-
--- Dragging System
-local dragging, dragInput, dragStart, startPos
-Main.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = Main.Position
+-- Default Load First Tab
+spawn(function()
+    if Tabs[1] then
+        -- Trigger click manually or call load logic
     end
-end)
-Main.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
-end)
-game:GetService("UserInputService").InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-game:GetService("UserInputService").InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
 end)
