@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (FIXED SCANNER & PERFECT HOVER) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (STRICT SCAN & PERMANENT HOVER) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v6.5 - Stable Edition" 
+getgenv().ScriptVersion = "AutoClear v7.0 - Ultimate Edition" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -61,7 +61,6 @@ local function WalkToGrid(tX, tY)
     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
     if not MyHitbox then return end
 
-    local startZ = MyHitbox.Position.Z
     local currentX = math.floor(MyHitbox.Position.X / getgenv().GridSize + 0.5)
     local currentY = math.floor(MyHitbox.Position.Y / getgenv().GridSize + 0.5)
 
@@ -74,7 +73,7 @@ local function WalkToGrid(tX, tY)
             currentY = currentY + (tY > currentY and 1 or -1) 
         end
         
-        local newWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
+        local newWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, MyHitbox.Position.Z)
         MyHitbox.CFrame = CFrame.new(newWorldPos)
         if PlayerMovement then pcall(function() PlayerMovement.Position = newWorldPos end) end
         
@@ -83,7 +82,7 @@ local function WalkToGrid(tX, tY)
 end
 
 -- ========================================== --
--- FUNGSI SCAN SPESIFIK (BLACKLIST SAJA)
+-- FUNGSI SCAN STRICT (WHITELIST + BLACKLIST)
 -- ========================================== --
 local function NeedsBreaking(gridX, gridY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
@@ -99,7 +98,6 @@ local function NeedsBreaking(gridX, gridY)
     params.FilterDescendantsInstances = filterObjects
     params.FilterType = Enum.RaycastFilterType.Exclude
 
-    -- Scan ruang 3D
     local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
     
     local targetFound = false
@@ -108,12 +106,15 @@ local function NeedsBreaking(gridX, gridY)
         if part:IsA("BasePart") then
             local pName = string.lower(part.Name)
             
-            -- SKIP: Jangan hancurkan Pintu, Entrance, Portal, Spawn, Bedrock
-            if string.find(pName, "door") or string.find(pName, "entrance") or string.find(pName, "portal") or string.find(pName, "spawn") or string.find(pName, "bedrock") then
-                return false -- Langsung lewati / skip koordinat ini
+            -- [1] BLACKLIST (Skip Sepenuhnya)
+            if string.find(pName, "door") or string.find(pName, "entrance") or string.find(pName, "bedrock") or string.find(pName, "portal") or string.find(pName, "spawn") then
+                return false -- Mutlak skip titik ini!
             end
             
-            targetFound = true -- Setidaknya ada satu block (apapun itu namanya) yang bisa dihancurkan
+            -- [2] WHITELIST (Target Penghancuran)
+            if string.find(pName, "dirt") or string.find(pName, "stone") or string.find(pName, "background") or string.find(pName, "bg") then
+                targetFound = true
+            end
         end
     end
     
@@ -134,6 +135,22 @@ task.spawn(function()
             local HitboxFolder = workspace:FindFirstChild("Hitbox")
             local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
 
+            -- [[ SISTEM MELAYANG PERMANEN ]] --
+            -- Membuat karakter anti-gravitasi sejak awal, agar tidak turun/jatuh saat pindah block
+            local hoverBV = nil
+            if MyHitbox then
+                -- Hapus BV nyangkut jika ada
+                for _, v in pairs(MyHitbox:GetChildren()) do
+                    if v.Name == "AutoClearZeroGravity" then v:Destroy() end
+                end
+
+                hoverBV = Instance.new("BodyVelocity")
+                hoverBV.Name = "AutoClearZeroGravity"
+                hoverBV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                hoverBV.Velocity = Vector3.zero
+                hoverBV.Parent = MyHitbox
+            end
+
             for currentY = getgenv().AC_StartY, getgenv().AC_EndY, -1 do
                 if not getgenv().AutoClearEnabled then break end 
                 local blockTargetY = currentY - 1 
@@ -148,52 +165,37 @@ task.spawn(function()
                 for currentX = startX, endX, stepX do
                     if not getgenv().AutoClearEnabled then break end
                     
-                    -- AUTO-RESUME: Jika koordinat ini tidak butuh dihancurkan (kosong atau pintu), SKIP!
+                    -- [[ SISTEM AUTO-RESUME TERTINGGI ]] --
+                    -- Jika kosong / bedrock / pintu, langsung skip hitungan milidetik
                     if not NeedsBreaking(currentX, blockTargetY) then
                         continue 
                     end
                     
-                    -- 1. Berjalan ke grid target
+                    -- Berjalan ke grid target
                     WalkToGrid(currentX, currentY)
                     task.wait(getgenv().MoveDelay) 
                     
-                    -- 2. Kunci Melayang di Udara (Anti Jatuh) HANYA SAAT BREAKING
-                    local hoverBV = nil
-                    if MyHitbox then
-                        hoverBV = Instance.new("BodyVelocity")
-                        hoverBV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-                        hoverBV.Velocity = Vector3.zero
-                        hoverBV.Parent = MyHitbox
-                    end
-
-                    -- 3. Hajar Target (Block + Background)
+                    -- Hajar Target (Sambil melayang konstan)
                     local tries = 0
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
                         
-                        -- Berhenti memukul jika sudah bersih atau tiba-tiba mendeteksi bedrock/pintu
+                        -- Cek berkala, jika Dirt/Stone/Bg hancur, langsung berhenti memukul
                         if not NeedsBreaking(currentX, blockTargetY) then break end
 
                         RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                         task.wait(getgenv().BreakDelay)
                         tries = tries + 1
                     end
-
-                    -- 4. Lepas kunci melayang agar karakter bisa jalan ke grid selanjutnya
-                    if hoverBV then hoverBV:Destroy() end
                 end
                 
                 arahKanan = not arahKanan 
             end
             
-            -- Matikan script dan bersihkan sisa-sisa BodyVelocity
+            -- Selesai, matikan script dan lepas kunci melayang
             isRunning = false
             if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
-            if MyHitbox then 
-                for _, child in pairs(MyHitbox:GetChildren()) do
-                    if child:IsA("BodyVelocity") then child:Destroy() end
-                end
-            end
+            if hoverBV then hoverBV:Destroy() end
         end
     end
 end)
