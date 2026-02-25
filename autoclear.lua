@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (STRICT SCAN & PERMANENT HOVER) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (UNIVERSAL SCAN & DYNAMIC HOVER) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v7.0 - Ultimate Edition" 
+getgenv().ScriptVersion = "AutoClear v8.0 - Final Fix" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -82,7 +82,7 @@ local function WalkToGrid(tX, tY)
 end
 
 -- ========================================== --
--- FUNGSI SCAN STRICT (WHITELIST + BLACKLIST)
+-- FUNGSI SCAN UNIVERSAL (BLACKLIST SAJA)
 -- ========================================== --
 local function NeedsBreaking(gridX, gridY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
@@ -98,6 +98,7 @@ local function NeedsBreaking(gridX, gridY)
     params.FilterDescendantsInstances = filterObjects
     params.FilterType = Enum.RaycastFilterType.Exclude
 
+    -- Cek kotak 3D untuk melihat apakah ada part
     local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
     
     local targetFound = false
@@ -106,15 +107,13 @@ local function NeedsBreaking(gridX, gridY)
         if part:IsA("BasePart") then
             local pName = string.lower(part.Name)
             
-            -- [1] BLACKLIST (Skip Sepenuhnya)
+            -- JIKA KETEMU PINTU/BEDROCK: Langsung abaikan titik ini dan selamatkan pintunya!
             if string.find(pName, "door") or string.find(pName, "entrance") or string.find(pName, "bedrock") or string.find(pName, "portal") or string.find(pName, "spawn") then
-                return false -- Mutlak skip titik ini!
+                return false 
             end
             
-            -- [2] WHITELIST (Target Penghancuran)
-            if string.find(pName, "dirt") or string.find(pName, "stone") or string.find(pName, "background") or string.find(pName, "bg") then
-                targetFound = true
-            end
+            -- Jika bukan pintu/bedrock, maka anggap ini adalah block atau background yang harus dihancurkan
+            targetFound = true
         end
     end
     
@@ -135,22 +134,6 @@ task.spawn(function()
             local HitboxFolder = workspace:FindFirstChild("Hitbox")
             local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
 
-            -- [[ SISTEM MELAYANG PERMANEN ]] --
-            -- Membuat karakter anti-gravitasi sejak awal, agar tidak turun/jatuh saat pindah block
-            local hoverBV = nil
-            if MyHitbox then
-                -- Hapus BV nyangkut jika ada
-                for _, v in pairs(MyHitbox:GetChildren()) do
-                    if v.Name == "AutoClearZeroGravity" then v:Destroy() end
-                end
-
-                hoverBV = Instance.new("BodyVelocity")
-                hoverBV.Name = "AutoClearZeroGravity"
-                hoverBV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-                hoverBV.Velocity = Vector3.zero
-                hoverBV.Parent = MyHitbox
-            end
-
             for currentY = getgenv().AC_StartY, getgenv().AC_EndY, -1 do
                 if not getgenv().AutoClearEnabled then break end 
                 local blockTargetY = currentY - 1 
@@ -166,36 +149,54 @@ task.spawn(function()
                     if not getgenv().AutoClearEnabled then break end
                     
                     -- [[ SISTEM AUTO-RESUME TERTINGGI ]] --
-                    -- Jika kosong / bedrock / pintu, langsung skip hitungan milidetik
+                    -- Jika kosong atau pintu/bedrock, lewati seketika
                     if not NeedsBreaking(currentX, blockTargetY) then
                         continue 
                     end
                     
-                    -- Berjalan ke grid target
+                    -- 1. Berjalan ke target (Bebas dari efek melayang agar tidak nge-glitch/berhenti)
                     WalkToGrid(currentX, currentY)
                     task.wait(getgenv().MoveDelay) 
                     
-                    -- Hajar Target (Sambil melayang konstan)
+                    -- 2. Kunci Melayang di Udara (HANYA SAAT BERHENTI UNTUK MEMUKUL)
+                    local hoverBV = nil
+                    if MyHitbox then
+                        hoverBV = Instance.new("BodyVelocity")
+                        hoverBV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                        hoverBV.Velocity = Vector3.zero
+                        hoverBV.Parent = MyHitbox
+                    end
+
+                    -- 3. Hajar Target (Block + Background)
                     local tries = 0
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
                         
-                        -- Cek berkala, jika Dirt/Stone/Bg hancur, langsung berhenti memukul
+                        -- Cek berkala, jika sudah hancur jadi kosong, langsung stop memukul
                         if not NeedsBreaking(currentX, blockTargetY) then break end
 
                         RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                         task.wait(getgenv().BreakDelay)
                         tries = tries + 1
                     end
+
+                    -- 4. Lepas kunci melayang agar karakter bisa jalan lagi ke target berikutnya
+                    if hoverBV then hoverBV:Destroy() end
                 end
                 
                 arahKanan = not arahKanan 
             end
             
-            -- Selesai, matikan script dan lepas kunci melayang
+            -- Selesai, matikan script
             isRunning = false
             if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
-            if hoverBV then hoverBV:Destroy() end
+            
+            -- Bersihkan sisa efek melayang kalau script di-stop paksa
+            if MyHitbox then 
+                for _, child in pairs(MyHitbox:GetChildren()) do
+                    if child:IsA("BodyVelocity") then child:Destroy() end
+                end
+            end
         end
     end
 end)
