@@ -1,11 +1,11 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (HOVER & FULL CLEAR BACKGROUND) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (PABRIK MOVEMENT & SMART SCAN FIX) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v2.1 - Perfect Sweep" 
+getgenv().ScriptVersion = "AutoClear v2.5 - Stable Hover" 
 
 -- ========================================== --
--- VARIABEL GLOBAL (Disinkronisasi)
+-- VARIABEL GLOBAL 
 -- ========================================== --
 getgenv().AutoClearEnabled = false
 getgenv().AC_StartX = 0
@@ -13,11 +13,11 @@ getgenv().AC_EndX = 100
 getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
 
-getgenv().GridSize = 4.5     -- Skala Grid Block 
-getgenv().BreakDelay = 0.05  -- Jeda antar pukulan saat menghancurkan block
-getgenv().StepDelay = 0.1    -- Kecepatan langkah grid-ke-grid
-getgenv().MoveDelay = 0.15   -- Jeda saat karakter sudah di posisi sebelum memukul
-getgenv().MaxHitFailsafe = 25 -- Maksimal pukulan (Jika background keras, akan dihajar sampai 25x)
+getgenv().GridSize = 4.5     
+getgenv().BreakDelay = 0.05  
+getgenv().StepDelay = 0.1    
+getgenv().MoveDelay = 0.1    
+getgenv().MaxHitFailsafe = 25 -- Maksimal hantam jika background keras
 -- ========================================== --
 
 local Players = game:GetService("Players")
@@ -29,7 +29,7 @@ local VirtualUser = game:GetService("VirtualUser")
 -- Anti AFK
 LP.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
 
--- Memuat Modul Pergerakan Khusus Game Ini
+-- Memuat Modul Pergerakan Khusus Game
 local PlayerMovement
 pcall(function() PlayerMovement = require(LP.PlayerScripts:WaitForChild("PlayerMovement")) end)
 
@@ -54,7 +54,7 @@ CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- FUNGSI PERGERAKAN GAME (WalkToGrid Stabil)
+-- FUNGSI PERGERAKAN GAME (100% PERSIS PABRIK)
 -- ========================================== --
 local function WalkToGrid(tX, tY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
@@ -65,10 +65,6 @@ local function WalkToGrid(tX, tY)
     local currentX = math.floor(MyHitbox.Position.X / getgenv().GridSize + 0.5)
     local currentY = math.floor(MyHitbox.Position.Y / getgenv().GridSize + 0.5)
 
-    -- Pastikan karakter tidak terkunci saat sedang berjalan
-    MyHitbox.Anchored = false
-
-    -- Bergerak langkah demi langkah hingga sampai ke titik tX, tY
     while (currentX ~= tX or currentY ~= tY) do
         if not getgenv().AutoClearEnabled then break end
         if currentX ~= tX then 
@@ -79,7 +75,6 @@ local function WalkToGrid(tX, tY)
         
         local newWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
         MyHitbox.CFrame = CFrame.new(newWorldPos)
-        
         if PlayerMovement then pcall(function() PlayerMovement.Position = newWorldPos end) end
         
         task.wait(getgenv().StepDelay)
@@ -87,7 +82,7 @@ local function WalkToGrid(tX, tY)
 end
 
 -- ========================================== --
--- FUNGSI SCAN BLOCK & BACKGROUND
+-- FUNGSI SCAN BLOCK & BACKGROUND (SMART DETECT)
 -- ========================================== --
 local function IsBlockOrBackgroundThere(gridX, gridY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
@@ -97,7 +92,6 @@ local function IsBlockOrBackgroundThere(gridX, gridY)
     local checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, MyHitbox.Position.Z)
     
     local params = OverlapParams.new()
-    -- Abaikan tubuh player dan item drop yang bertebaran agar scan tidak stuck
     local filterObjects = {LP.Character, HitboxFolder, workspace.CurrentCamera}
     if workspace:FindFirstChild("DroppedItems") then table.insert(filterObjects, workspace.DroppedItems) end
     if workspace:FindFirstChild("Items") then table.insert(filterObjects, workspace.Items) end
@@ -105,16 +99,16 @@ local function IsBlockOrBackgroundThere(gridX, gridY)
     params.FilterDescendantsInstances = filterObjects
     params.FilterType = Enum.RaycastFilterType.Exclude
 
-    -- Scan kotak 3D ukuran 2x2x10 di koordinat tersebut (Menjangkau block depan sampai background belakang)
-    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(2, 2, 10), params)
+    -- Skala Z diperbesar menjadi 50 agar background yang letaknya menjorok ke dalam tetap terdeteksi
+    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
     
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then
-            return true -- Masih ada block atau background yang tersisa
+            return true -- Masih ada block/dirt/background
         end
     end
     
-    return false -- Udara kosong / sudah hancur total
+    return false -- Udara kosong (sudah hancur total)
 end
 
 -- ========================================== --
@@ -133,80 +127,75 @@ task.spawn(function()
 
             for currentY = getgenv().AC_StartY, getgenv().AC_EndY, -1 do
                 if not getgenv().AutoClearEnabled then break end 
-                
-                -- TARGET BREAK: Tepat 1 block di bawah karakter
                 local blockTargetY = currentY - 1 
                 
                 if arahKanan then
-                    -- Kiri ke Kanan
                     for currentX = getgenv().AC_StartX, getgenv().AC_EndX do
                         if not getgenv().AutoClearEnabled then break end
                         
-                        -- 1. Berjalan ke titik tepat di atas block
+                        -- 1. Berjalan ke atas block (Gunakan metode Pabrik)
                         WalkToGrid(currentX, currentY)
                         task.wait(getgenv().MoveDelay) 
                         
-                        -- 2. Tahan Posisi Melayang (Anti Jatuh)
-                        if MyHitbox then MyHitbox.Anchored = true end
-                        
-                        -- 3. Hancurkan Dirt + Background sampai tak tersisa
+                        -- 2. Memukul Block Sampai Bersih (Sambil menjaga posisi agar tidak jatuh)
                         local tries = 0
+                        local hoverPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, MyHitbox.Position.Z)
+                        
                         while tries < getgenv().MaxHitFailsafe do
                             if not getgenv().AutoClearEnabled then break end
                             
-                            -- Cek apakah block/background sudah hancur
+                            -- Kunci CFrame secara real-time agar karakter melayang (hover) di udara
+                            if MyHitbox then 
+                                MyHitbox.CFrame = CFrame.new(hoverPos) 
+                                if PlayerMovement then pcall(function() PlayerMovement.Position = hoverPos end) end
+                            end
+                            
+                            -- Deteksi apakah kordinat sudah bersih
                             if not IsBlockOrBackgroundThere(currentX, blockTargetY) then
-                                break -- Sudah bersih! Berhenti memukul dan lanjut geser
+                                break -- Block & Background Hancur!
                             end
 
-                            -- Jika belum bersih, pukul terus
+                            -- Eksekusi Pukulan
                             RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                             task.wait(getgenv().BreakDelay)
                             tries = tries + 1
                         end
-                        
-                        -- 4. Lepas Posisi agar bisa maju ke block sebelahnya
-                        if MyHitbox then MyHitbox.Anchored = false end
                     end
                 else
-                    -- Kanan ke Kiri (Jalan Mundur)
                     for currentX = getgenv().AC_EndX, getgenv().AC_StartX, -1 do
                         if not getgenv().AutoClearEnabled then break end
                         
-                        -- 1. Berjalan ke titik tepat di atas block
                         WalkToGrid(currentX, currentY)
                         task.wait(getgenv().MoveDelay) 
                         
-                        -- 2. Tahan Posisi Melayang (Anti Jatuh)
-                        if MyHitbox then MyHitbox.Anchored = true end
-                        
-                        -- 3. Hancurkan Dirt + Background sampai tak tersisa
                         local tries = 0
+                        local hoverPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, MyHitbox.Position.Z)
+                        
                         while tries < getgenv().MaxHitFailsafe do
                             if not getgenv().AutoClearEnabled then break end
                             
+                            -- Tahan posisi di udara (Hovering)
+                            if MyHitbox then 
+                                MyHitbox.CFrame = CFrame.new(hoverPos) 
+                                if PlayerMovement then pcall(function() PlayerMovement.Position = hoverPos end) end
+                            end
+                            
                             if not IsBlockOrBackgroundThere(currentX, blockTargetY) then
-                                break
+                                break 
                             end
 
                             RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                             task.wait(getgenv().BreakDelay)
                             tries = tries + 1
                         end
-                        
-                        -- 4. Lepas Posisi agar bisa maju
-                        if MyHitbox then MyHitbox.Anchored = false end
                     end
                 end
                 
-                -- Ganti arah untuk baris selanjutnya (Biar langsung turun di ujung)
                 arahKanan = not arahKanan 
             end
             
-            -- Selesai, matikan toggle otomatis dan pastikan tidak nyangkut
             isRunning = false
             if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
-            if MyHitbox then MyHitbox.Anchored = false end
         end
     end
 end)
