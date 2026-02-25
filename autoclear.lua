@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (ZIG-ZAG & MOVEMENT FIXED) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (SMART SCAN & HOVER FIXED) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v1.8 - Final Sweep" 
+getgenv().ScriptVersion = "AutoClear v2.0 - Smart Scan" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL (Disinkronisasi)
@@ -12,11 +12,12 @@ getgenv().AC_StartX = 0
 getgenv().AC_EndX = 100
 getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
-getgenv().AC_HitCount = 4    -- Jumlah pukulan per block (Sampai benar-benar hancur)
+
 getgenv().GridSize = 4.5     -- Skala Grid Block (Sama dengan Pabrik)
 getgenv().BreakDelay = 0.05  -- Jeda antar pukulan saat menghancurkan block
 getgenv().StepDelay = 0.1    -- Kecepatan langkah grid-ke-grid
 getgenv().MoveDelay = 0.15   -- Jeda saat karakter sudah di posisi sebelum memukul
+getgenv().MaxHitFailsafe = 20 -- Failsafe: Maksimal pukulan jika scan nge-bug (agar tidak infinite loop)
 -- ========================================== --
 
 local Players = game:GetService("Players")
@@ -28,7 +29,7 @@ local VirtualUser = game:GetService("VirtualUser")
 -- Anti AFK
 LP.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
 
--- Memuat Modul Pergerakan Khusus Game Ini (Dari referensi Pabrik)
+-- Memuat Modul Pergerakan Khusus Game Ini
 local PlayerMovement
 pcall(function() PlayerMovement = require(LP.PlayerScripts:WaitForChild("PlayerMovement")) end)
 
@@ -47,25 +48,27 @@ local function CreateSlider(Parent, Text, Min, Max, Default, Var) local Frame = 
 -- MEMBANGUN MENU UI 
 -- ========================================== --
 CreateToggle(TargetPage, "Start Auto Clear World", "AutoClearEnabled")
-CreateSlider(TargetPage, "Hit Count (Pukulan / Block)", 1, 15, 4, "AC_HitCount")
 CreateSlider(TargetPage, "Start X", 0, 500, 0, "AC_StartX")
 CreateSlider(TargetPage, "End X", 0, 500, 100, "AC_EndX")
 CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- FUNGSI PERGERAKAN GAME (WalkToGrid dari Pabrik)
+-- FUNGSI CORE GAME (Scan, Walk, Hover)
 -- ========================================== --
+local StartZ = 0 -- Akan direkam saat script dimulai agar scan sejajar dengan karakter
+
 local function WalkToGrid(tX, tY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
     if not MyHitbox then return end
 
-    local startZ = MyHitbox.Position.Z
     local currentX = math.floor(MyHitbox.Position.X / getgenv().GridSize + 0.5)
     local currentY = math.floor(MyHitbox.Position.Y / getgenv().GridSize + 0.5)
 
-    -- Bergerak langkah demi langkah hingga sampai ke titik tX, tY
+    -- Pastikan saat berjalan, karakter TIDAK terkunci (Anchored)
+    MyHitbox.Anchored = false
+
     while (currentX ~= tX or currentY ~= tY) do
         if not getgenv().AutoClearEnabled then break end
         if currentX ~= tX then 
@@ -74,14 +77,35 @@ local function WalkToGrid(tX, tY)
             currentY = currentY + (tY > currentY and 1 or -1) 
         end
         
-        local newWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
+        local newWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, StartZ)
         MyHitbox.CFrame = CFrame.new(newWorldPos)
         
-        -- Bypass Anti-Cheat pergerakan internal game
         if PlayerMovement then pcall(function() PlayerMovement.Position = newWorldPos end) end
-        
         task.wait(getgenv().StepDelay)
     end
+end
+
+-- Fungsi Cerdas Memindai Block (Foreground + Background)
+local function IsBlockStillThere(gridX, gridY)
+    local checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, StartZ)
+    
+    -- Memfilter agar tubuh player/hitbox tidak ikut terdeteksi sebagai block
+    local params = OverlapParams.new()
+    params.FilterDescendantsInstances = {LP.Character, workspace:FindFirstChild("Hitbox")}
+    params.FilterType = Enum.RaycastFilterType.Exclude
+
+    -- Memindai radius 1.5 stud di titik pusat block tersebut
+    local partsInGrid = workspace:GetPartBoundsInRadius(checkPos, 1.5, params)
+    
+    -- Jika ada Part apapun yang tertinggal di grid itu, return true (berarti belum hancur total)
+    for _, part in ipairs(partsInGrid) do
+        if part:IsA("BasePart") then
+            return true 
+        end
+    end
+    
+    -- Jika array kosong, berarti sudah jadi udara kosong
+    return false 
 end
 
 -- ========================================== --
@@ -95,55 +119,70 @@ task.spawn(function()
             isRunning = true
             local arahKanan = true 
             
+            -- Menyimpan posisi Z awal agar presisi saat menscan block
+            local MyHitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
+            if MyHitbox then StartZ = MyHitbox.Position.Z end
+            
             for currentY = getgenv().AC_StartY, getgenv().AC_EndY, -1 do
                 if not getgenv().AutoClearEnabled then break end 
-                
-                -- TARGET BREAK: Tepat 1 block di bawah karakter
                 local blockTargetY = currentY - 1 
                 
                 if arahKanan then
-                    -- Kiri ke Kanan
                     for currentX = getgenv().AC_StartX, getgenv().AC_EndX do
                         if not getgenv().AutoClearEnabled then break end
                         
-                        -- 1. Berjalan ke titik tepat di atas block
+                        -- 1. Berjalan ke titik atas block
                         WalkToGrid(currentX, currentY)
                         task.wait(getgenv().MoveDelay) 
                         
-                        -- 2. Fokus memukul block yang ada di bawah saja
-                        for hit = 1, getgenv().AC_HitCount do
+                        -- 2. KUNCI KARAKTER AGAR MELAYANG (ANTI JATUH)
+                        if MyHitbox then MyHitbox.Anchored = true end
+                        
+                        -- 3. SCAN FISIK & PUKUL SAMPAI HANCUR (Termasuk Background)
+                        local tries = 0
+                        while IsBlockStillThere(currentX, blockTargetY) and tries < getgenv().MaxHitFailsafe do
                             if not getgenv().AutoClearEnabled then break end
                             RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                             task.wait(getgenv().BreakDelay)
+                            tries = tries + 1
                         end
+                        
+                        -- Lepas kunci agar bisa pindah
+                        if MyHitbox then MyHitbox.Anchored = false end
                     end
                 else
-                    -- Kanan ke Kiri (Jalan Mundur)
                     for currentX = getgenv().AC_EndX, getgenv().AC_StartX, -1 do
                         if not getgenv().AutoClearEnabled then break end
                         
-                        -- 1. Berjalan ke titik tepat di atas block
+                        -- 1. Berjalan ke titik atas block
                         WalkToGrid(currentX, currentY)
                         task.wait(getgenv().MoveDelay) 
                         
-                        -- 2. Fokus memukul block yang ada di bawah saja
-                        for hit = 1, getgenv().AC_HitCount do
+                        -- 2. KUNCI KARAKTER AGAR MELAYANG (ANTI JATUH)
+                        if MyHitbox then MyHitbox.Anchored = true end
+                        
+                        -- 3. SCAN FISIK & PUKUL SAMPAI HANCUR (Termasuk Background)
+                        local tries = 0
+                        while IsBlockStillThere(currentX, blockTargetY) and tries < getgenv().MaxHitFailsafe do
                             if not getgenv().AutoClearEnabled then break end
                             RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                             task.wait(getgenv().BreakDelay)
+                            tries = tries + 1
                         end
+                        
+                        -- Lepas kunci agar bisa pindah
+                        if MyHitbox then MyHitbox.Anchored = false end
                     end
                 end
                 
-                -- Ganti arah untuk baris selanjutnya (Biar langsung turun di ujung)
                 arahKanan = not arahKanan 
             end
             
-            -- Selesai, matikan toggle otomatis
             isRunning = false
-            if getgenv().AutoClearEnabled then
-                getgenv().AutoClearEnabled = false
-            end
+            if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
+            
+            -- Lepas kunci secara paksa saat script berhenti agar karakter tidak nyangkut permanen
+            if MyHitbox then MyHitbox.Anchored = false end
         end
     end
 end)
