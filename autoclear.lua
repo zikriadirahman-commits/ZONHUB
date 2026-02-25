@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (SMART PATHFINDING & PERFECT FLY FREEZE) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (GIANT FLOOR & SMART PATHFINDING) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v10 - Anti Glitch" 
+getgenv().ScriptVersion = "AutoClear v11.0 - The Masterpiece" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -15,11 +15,10 @@ getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.05  
-getgenv().StepDelay = 0.1    -- Jeda jalan per block
+getgenv().StepDelay = 0.1    -- Jeda jalan murni per block
 getgenv().MoveDelay = 0.15    
 getgenv().MaxHitFailsafe = 20 
 
--- Blacklist untuk block error/pintu
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 -- ========================================== --
 
@@ -57,7 +56,7 @@ CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- FUNGSI JALAN ANTI-GLITCH (SMART PATHFINDING)
+-- FUNGSI JALAN ANTI-GLITCH (LOGIKA PABRIK + SMART PATH)
 -- ========================================== --
 local function WalkToGrid(tX, tY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
@@ -68,20 +67,18 @@ local function WalkToGrid(tX, tY)
     local currentX = math.floor(MyHitbox.Position.X / getgenv().GridSize + 0.5)
     local currentY = math.floor(MyHitbox.Position.Y / getgenv().GridSize + 0.5)
 
-    -- Matikan tabrakan saat jalan agar tidak nyangkut sedikitpun
-    MyHitbox.CanCollide = false
-
+    -- Looping jalan murni 1 per 1 (Seperti Pabrik)
     while (currentX ~= tX or currentY ~= tY) do
         if not getgenv().AutoClearEnabled then break end
         
-        -- LOGIKA BARU: Jika target lebih tinggi, NAIK DULU.
-        -- Ini mencegah karakter menabrak dinding tanah saat bergeser horizontal dari bawah.
+        -- LOGIKA PINTAR: Naik dulu -> Geser X -> Baru Turun. 
+        -- Mencegah karakter nembus tanah dan anti balik-balik!
         if currentY < tY then 
             currentY = currentY + 1
         elseif currentX ~= tX then 
             currentX = currentX + (tX > currentX and 1 or -1)
         elseif currentY > tY then 
-            currentY = currentY - 1
+            currentY = currentY - 1 
         end
         
         local newWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
@@ -91,8 +88,6 @@ local function WalkToGrid(tX, tY)
         
         task.wait(getgenv().StepDelay)
     end
-    
-    MyHitbox.CanCollide = true
 end
 
 -- ========================================== --
@@ -126,6 +121,7 @@ local function NeedsBreaking(gridX, gridY)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then
             local partName = string.lower(part.Name)
+            -- JANGAN HANCURKAN: Pintu, Entrance, Spawn, Portal, Bedrock, Border
             if string.find(partName, "door") or string.find(partName, "portal") or string.find(partName, "entrance") or string.find(partName, "spawn") or string.find(partName, "bedrock") or string.find(partName, "border") then
                 isProtectedDoor = true
             else
@@ -151,9 +147,20 @@ task.spawn(function()
             
             local HitboxFolder = workspace:FindFirstChild("Hitbox")
             local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
+            local startZ = MyHitbox and MyHitbox.Position.Z or 0
 
-            -- [[ PRE-SCAN (SMART RESUME TERBAIK) ]] --
-            -- Mendeteksi block paling tinggi secara otomatis
+            -- [[ TRIK LANTAI RAKSASA (ANTI-GETAR & ANTI JATUH ABSOLUT) ]] --
+            -- Membuat lantai palsu yang transparan agar karakter bisa memijak di udara
+            local GiantFloor = Instance.new("Part")
+            GiantFloor.Name = "ZONHUB_GiantFloor"
+            GiantFloor.Size = Vector3.new(2000, getgenv().GridSize, getgenv().GridSize)
+            GiantFloor.Anchored = true
+            GiantFloor.CanCollide = true
+            GiantFloor.Transparency = 1 -- 100% Tak Terlihat
+            -- Memasukkan ke CurrentCamera agar tidak ter-scan oleh radar bot
+            GiantFloor.Parent = workspace.CurrentCamera 
+
+            -- [[ PRE-SCAN (SMART RESUME) ]] --
             local highestTargetY = getgenv().AC_StartY
             for scanY = getgenv().AC_StartY, getgenv().AC_EndY, -1 do
                 local foundBlockInRow = false
@@ -169,11 +176,14 @@ task.spawn(function()
                 end
             end
 
-            -- Mulai dari Y tertinggi yang ditemukan
             for currentY = highestTargetY, getgenv().AC_EndY, -1 do
                 if not getgenv().AutoClearEnabled then break end 
                 local blockTargetY = currentY - 1 
                 
+                -- Memindahkan Lantai Raksasa tepat 1 block di bawah karakter
+                -- Karakter akan berpijak pada lantai ini, menipu engine game!
+                GiantFloor.Position = Vector3.new(50 * getgenv().GridSize, blockTargetY * getgenv().GridSize, startZ)
+
                 local startX, endX, stepX
                 if arahKanan then
                     startX, endX, stepX = getgenv().AC_StartX, getgenv().AC_EndX, 1
@@ -188,22 +198,13 @@ task.spawn(function()
                         continue 
                     end
                     
-                    -- 1. Berjalan aman (Anti nabrak tanah)
+                    -- 1. Berjalan aman per block
                     WalkToGrid(currentX, currentY)
                     task.wait(getgenv().MoveDelay) 
                     
-                    -- 2. ABSOLUTE FREEZE (MEMBEKU DI UDARA)
-                    local startZ = MyHitbox and MyHitbox.Position.Z or 0
-                    if MyHitbox then 
-                        MyHitbox.CanCollide = false -- Mencegah pantulan fisik
-                        MyHitbox.Anchored = true    -- Mengunci gravitasi mati 100%
-                        local lockPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
-                        MyHitbox.CFrame = CFrame.new(lockPos)
-                        MyHitbox.Velocity = Vector3.zero
-                        if PlayerMovement then pcall(function() PlayerMovement.Position = lockPos end) end
-                    end 
-                    
-                    -- 3. Hancurkan Block 
+                    -- 2. Hancurkan Block 
+                    -- Karena ada Lantai Raksasa (GiantFloor) di bawah pijakannya, 
+                    -- Karakter tidak akan jatuh atau bergetar sama sekali meskipun block aslinya hancur!
                     local tries = 0
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
@@ -214,15 +215,9 @@ task.spawn(function()
                         tries = tries + 1
                     end
                     
-                    -- 4. Blacklist jika nyangkut
+                    -- 3. Blacklist jika pintu tersembunyi nge-bug
                     if tries >= getgenv().MaxHitFailsafe then
                         getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
-                    end
-
-                    -- 5. Lepas kunci agar bisa pindah
-                    if MyHitbox then 
-                        MyHitbox.Anchored = false 
-                        MyHitbox.CanCollide = true
                     end
                 end
                 
@@ -232,11 +227,8 @@ task.spawn(function()
             isRunning = false
             if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
             
-            -- Lepas status jika di stop paksa
-            if MyHitbox then 
-                MyHitbox.Anchored = false 
-                MyHitbox.CanCollide = true
-            end
+            -- Menghapus lantai raksasa saat selesai atau stop
+            if GiantFloor then GiantFloor:Destroy() end
         end
     end
 end)
