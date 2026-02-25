@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (PABRIK MOVEMENT & SMART SCAN FIX) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (ANTI-JITTER & AUTO RESUME) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v2.5 - Stable Hover" 
+getgenv().ScriptVersion = "AutoClear v3.0 - Smart Resume" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -17,7 +17,7 @@ getgenv().GridSize = 4.5
 getgenv().BreakDelay = 0.05  
 getgenv().StepDelay = 0.1    
 getgenv().MoveDelay = 0.1    
-getgenv().MaxHitFailsafe = 25 -- Maksimal hantam jika background keras
+getgenv().MaxHitFailsafe = 25 
 -- ========================================== --
 
 local Players = game:GetService("Players")
@@ -82,7 +82,7 @@ local function WalkToGrid(tX, tY)
 end
 
 -- ========================================== --
--- FUNGSI SCAN BLOCK & BACKGROUND (SMART DETECT)
+-- FUNGSI SCAN SMART DETECT 
 -- ========================================== --
 local function IsBlockOrBackgroundThere(gridX, gridY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
@@ -99,16 +99,14 @@ local function IsBlockOrBackgroundThere(gridX, gridY)
     params.FilterDescendantsInstances = filterObjects
     params.FilterType = Enum.RaycastFilterType.Exclude
 
-    -- Skala Z diperbesar menjadi 50 agar background yang letaknya menjorok ke dalam tetap terdeteksi
     local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
     
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then
-            return true -- Masih ada block/dirt/background
+            return true 
         end
     end
-    
-    return false -- Udara kosong (sudah hancur total)
+    return false 
 end
 
 -- ========================================== --
@@ -133,69 +131,92 @@ task.spawn(function()
                     for currentX = getgenv().AC_StartX, getgenv().AC_EndX do
                         if not getgenv().AutoClearEnabled then break end
                         
-                        -- 1. Berjalan ke atas block (Gunakan metode Pabrik)
+                        -- [[ SISTEM AUTO-RESUME (FAST FORWARD) ]] --
+                        -- Jika di titik ini sudah bersih (udara kosong), langsung Skip!
+                        -- Ini membuat bot otomatis mencari block tertinggi dan terdekat.
+                        if not IsBlockOrBackgroundThere(currentX, blockTargetY) then
+                            continue 
+                        end
+                        
+                        -- 1. Berjalan ke titik atas block
                         WalkToGrid(currentX, currentY)
                         task.wait(getgenv().MoveDelay) 
                         
-                        -- 2. Memukul Block Sampai Bersih (Sambil menjaga posisi agar tidak jatuh)
-                        local tries = 0
-                        local hoverPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, MyHitbox.Position.Z)
+                        -- 2. [[ SISTEM ANTI-JITTER (MEMBEKU DI UDARA) ]] --
+                        local hoverBV = nil
+                        if MyHitbox then
+                            hoverBV = Instance.new("BodyVelocity")
+                            hoverBV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                            hoverBV.Velocity = Vector3.zero -- Membekukan pergerakan gravitasi
+                            hoverBV.Parent = MyHitbox
+                        end
                         
+                        -- 3. Memukul Block Sampai Bersih 
+                        local tries = 0
                         while tries < getgenv().MaxHitFailsafe do
                             if not getgenv().AutoClearEnabled then break end
                             
-                            -- Kunci CFrame secara real-time agar karakter melayang (hover) di udara
-                            if MyHitbox then 
-                                MyHitbox.CFrame = CFrame.new(hoverPos) 
-                                if PlayerMovement then pcall(function() PlayerMovement.Position = hoverPos end) end
-                            end
-                            
-                            -- Deteksi apakah kordinat sudah bersih
-                            if not IsBlockOrBackgroundThere(currentX, blockTargetY) then
-                                break -- Block & Background Hancur!
-                            end
+                            if not IsBlockOrBackgroundThere(currentX, blockTargetY) then break end
 
-                            -- Eksekusi Pukulan
                             RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                             task.wait(getgenv().BreakDelay)
                             tries = tries + 1
                         end
+                        
+                        -- 4. Melepas kebekuan (Hover) agar bisa pindah
+                        if hoverBV then hoverBV:Destroy() end
                     end
                 else
                     for currentX = getgenv().AC_EndX, getgenv().AC_StartX, -1 do
                         if not getgenv().AutoClearEnabled then break end
                         
+                        -- [[ SISTEM AUTO-RESUME (FAST FORWARD) ]] --
+                        if not IsBlockOrBackgroundThere(currentX, blockTargetY) then
+                            continue 
+                        end
+                        
+                        -- 1. Berjalan ke titik atas block
                         WalkToGrid(currentX, currentY)
                         task.wait(getgenv().MoveDelay) 
                         
-                        local tries = 0
-                        local hoverPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, MyHitbox.Position.Z)
+                        -- 2. [[ SISTEM ANTI-JITTER ]] --
+                        local hoverBV = nil
+                        if MyHitbox then
+                            hoverBV = Instance.new("BodyVelocity")
+                            hoverBV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                            hoverBV.Velocity = Vector3.zero
+                            hoverBV.Parent = MyHitbox
+                        end
                         
+                        -- 3. Memukul Block Sampai Bersih
+                        local tries = 0
                         while tries < getgenv().MaxHitFailsafe do
                             if not getgenv().AutoClearEnabled then break end
                             
-                            -- Tahan posisi di udara (Hovering)
-                            if MyHitbox then 
-                                MyHitbox.CFrame = CFrame.new(hoverPos) 
-                                if PlayerMovement then pcall(function() PlayerMovement.Position = hoverPos end) end
-                            end
-                            
-                            if not IsBlockOrBackgroundThere(currentX, blockTargetY) then
-                                break 
-                            end
+                            if not IsBlockOrBackgroundThere(currentX, blockTargetY) then break end
 
                             RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                             task.wait(getgenv().BreakDelay)
                             tries = tries + 1
                         end
+                        
+                        -- 4. Melepas kebekuan
+                        if hoverBV then hoverBV:Destroy() end
                     end
                 end
                 
                 arahKanan = not arahKanan 
             end
             
+            -- Selesai, matikan toggle otomatis
             isRunning = false
             if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
+            
+            -- Failsafe: Hapus BodyVelocity jika script dimatikan paksa di tengah jalan
+            if MyHitbox then
+                local sisaBV = MyHitbox:FindFirstChildOfClass("BodyVelocity")
+                if sisaBV then sisaBV:Destroy() end
+            end
         end
     end
 end)
