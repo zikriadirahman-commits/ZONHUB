@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (PABRIK MOVEMENT + ABSOLUTE FREEZE + SMART RESUME) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (SMART PATHFINDING & PERFECT FLY FREEZE) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v9.5 - Absolute Perfection" 
+getgenv().ScriptVersion = "AutoClear v10 - Anti Glitch" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -15,11 +15,11 @@ getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.05  
-getgenv().StepDelay = 0.1    -- Jeda jalan 1 per 1 (Sama dengan Pabrik)
+getgenv().StepDelay = 0.1    -- Jeda jalan per block
 getgenv().MoveDelay = 0.15    
 getgenv().MaxHitFailsafe = 20 
 
--- Blacklist untuk block yang nge-bug/tidak bisa dihancurkan agar tidak diulang-ulang
+-- Blacklist untuk block error/pintu
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 -- ========================================== --
 
@@ -57,7 +57,7 @@ CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- FUNGSI PERGERAKAN JALAN MURNI (100% LOGIKA PABRIK)
+-- FUNGSI JALAN ANTI-GLITCH (SMART PATHFINDING)
 -- ========================================== --
 local function WalkToGrid(tX, tY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
@@ -68,14 +68,20 @@ local function WalkToGrid(tX, tY)
     local currentX = math.floor(MyHitbox.Position.X / getgenv().GridSize + 0.5)
     local currentY = math.floor(MyHitbox.Position.Y / getgenv().GridSize + 0.5)
 
-    -- Looping jalan murni, 100% copas dari script Pabrik
+    -- Matikan tabrakan saat jalan agar tidak nyangkut sedikitpun
+    MyHitbox.CanCollide = false
+
     while (currentX ~= tX or currentY ~= tY) do
         if not getgenv().AutoClearEnabled then break end
         
-        if currentX ~= tX then 
+        -- LOGIKA BARU: Jika target lebih tinggi, NAIK DULU.
+        -- Ini mencegah karakter menabrak dinding tanah saat bergeser horizontal dari bawah.
+        if currentY < tY then 
+            currentY = currentY + 1
+        elseif currentX ~= tX then 
             currentX = currentX + (tX > currentX and 1 or -1)
-        elseif currentY ~= tY then 
-            currentY = currentY + (tY > currentY and 1 or -1) 
+        elseif currentY > tY then 
+            currentY = currentY - 1
         end
         
         local newWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
@@ -85,13 +91,14 @@ local function WalkToGrid(tX, tY)
         
         task.wait(getgenv().StepDelay)
     end
+    
+    MyHitbox.CanCollide = true
 end
 
 -- ========================================== --
--- FUNGSI SCAN PINTAR (DENGAN SISTEM BLACKLIST)
+-- FUNGSI SCAN PINTAR (SKIP KOSONG & PINTU)
 -- ========================================== --
 local function NeedsBreaking(gridX, gridY)
-    -- Jika koordinat ini pernah gagal dihancurkan (blacklist), langsung abaikan selamanya
     if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return false end
 
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
@@ -119,7 +126,6 @@ local function NeedsBreaking(gridX, gridY)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then
             local partName = string.lower(part.Name)
-            -- JANGAN HANCURKAN: Pintu, Entrance, Spawn, Portal, Bedrock, Border
             if string.find(partName, "door") or string.find(partName, "portal") or string.find(partName, "entrance") or string.find(partName, "spawn") or string.find(partName, "bedrock") or string.find(partName, "border") then
                 isProtectedDoor = true
             else
@@ -146,8 +152,8 @@ task.spawn(function()
             local HitboxFolder = workspace:FindFirstChild("Hitbox")
             local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
 
-            -- [[ PRE-SCAN UNTUK AUTO RESUME TERBAIK ]] --
-            -- Mencari baris Y paling atas yang memang benar-benar ada blocknya
+            -- [[ PRE-SCAN (SMART RESUME TERBAIK) ]] --
+            -- Mendeteksi block paling tinggi secara otomatis
             local highestTargetY = getgenv().AC_StartY
             for scanY = getgenv().AC_StartY, getgenv().AC_EndY, -1 do
                 local foundBlockInRow = false
@@ -163,7 +169,7 @@ task.spawn(function()
                 end
             end
 
-            -- Mulai loop dari block tertinggi yang ditemukan (Bukan ngulang dari awal!)
+            -- Mulai dari Y tertinggi yang ditemukan
             for currentY = highestTargetY, getgenv().AC_EndY, -1 do
                 if not getgenv().AutoClearEnabled then break end 
                 local blockTargetY = currentY - 1 
@@ -178,25 +184,26 @@ task.spawn(function()
                 for currentX = startX, endX, stepX do
                     if not getgenv().AutoClearEnabled then break end
                     
-                    -- Jika kosong atau di-blacklist, lewati langsung!
                     if not NeedsBreaking(currentX, blockTargetY) then
                         continue 
                     end
                     
-                    -- 1. Berjalan aman (Logic Pabrik)
+                    -- 1. Berjalan aman (Anti nabrak tanah)
                     WalkToGrid(currentX, currentY)
                     task.wait(getgenv().MoveDelay) 
                     
-                    -- 2. ABSOLUTE FREEZE (Mematung 100% saat memukul)
+                    -- 2. ABSOLUTE FREEZE (MEMBEKU DI UDARA)
                     local startZ = MyHitbox and MyHitbox.Position.Z or 0
                     if MyHitbox then 
-                        MyHitbox.Anchored = true -- Mengunci fisik karakter sepenuhnya dari gravitasi
+                        MyHitbox.CanCollide = false -- Mencegah pantulan fisik
+                        MyHitbox.Anchored = true    -- Mengunci gravitasi mati 100%
                         local lockPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
                         MyHitbox.CFrame = CFrame.new(lockPos)
+                        MyHitbox.Velocity = Vector3.zero
                         if PlayerMovement then pcall(function() PlayerMovement.Position = lockPos end) end
                     end 
                     
-                    -- 3. Hancurkan Block
+                    -- 3. Hancurkan Block 
                     local tries = 0
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
@@ -207,14 +214,16 @@ task.spawn(function()
                         tries = tries + 1
                     end
                     
-                    -- 4. SISTEM BLACKLIST
-                    -- Jika dipukul 20 kali tidak hancur (berarti itu block nyangkut/nge-bug), blacklist koordinat tersebut!
+                    -- 4. Blacklist jika nyangkut
                     if tries >= getgenv().MaxHitFailsafe then
                         getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                     end
 
-                    -- 5. Lepas kunci agar bisa jalan ke block selanjutnya
-                    if MyHitbox then MyHitbox.Anchored = false end
+                    -- 5. Lepas kunci agar bisa pindah
+                    if MyHitbox then 
+                        MyHitbox.Anchored = false 
+                        MyHitbox.CanCollide = true
+                    end
                 end
                 
                 arahKanan = not arahKanan 
@@ -223,8 +232,11 @@ task.spawn(function()
             isRunning = false
             if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
             
-            -- Lepas kunci jika distop paksa di tengah jalan
-            if MyHitbox then MyHitbox.Anchored = false end
+            -- Lepas status jika di stop paksa
+            if MyHitbox then 
+                MyHitbox.Anchored = false 
+                MyHitbox.CanCollide = true
+            end
         end
     end
 end)
