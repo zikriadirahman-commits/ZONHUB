@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (PERFECT HOVER & SMART RESUME) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (NO TELEPORT, WALK ONLY FIX) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v4.0 - Perfect Edition" 
+getgenv().ScriptVersion = "AutoClear v4.5 - Walk Only" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -15,7 +15,7 @@ getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.05  
-getgenv().StepDelay = 0.1    
+getgenv().StepDelay = 0.1    -- Kelajuan jalan per block (boleh diubah di sini jika terlalu laju/lambat)
 getgenv().MoveDelay = 0.15    
 getgenv().MaxHitFailsafe = 25 
 -- ========================================== --
@@ -55,7 +55,7 @@ CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- FUNGSI PERGERAKAN GAME (DENGAN AUTO-TELEPORT JAUH)
+-- FUNGSI PERGERAKAN GAME (STRICT WALK PER BLOCK)
 -- ========================================== --
 local function WalkToGrid(tX, tY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
@@ -66,18 +66,11 @@ local function WalkToGrid(tX, tY)
     local currentX = math.floor(MyHitbox.Position.X / getgenv().GridSize + 0.5)
     local currentY = math.floor(MyHitbox.Position.Y / getgenv().GridSize + 0.5)
 
-    -- ANTI-GLITCH: Jika jarak lebih dari 2 block (Misal saat Auto-Resume dari X=50 ke X=0), teleport langsung!
-    if math.abs(currentX - tX) > 2 or math.abs(currentY - tY) > 2 then
-        local newWorldPos = Vector3.new(tX * getgenv().GridSize, tY * getgenv().GridSize, startZ)
-        MyHitbox.CFrame = CFrame.new(newWorldPos)
-        if PlayerMovement then pcall(function() PlayerMovement.Position = newWorldPos end) end
-        task.wait(getgenv().MoveDelay)
-        return
-    end
-
-    -- Jalan normal jika jarak dekat (1 block)
+    -- Murni jalan block per block, tiada lagi fungsi teleport lompat jauh.
     while (currentX ~= tX or currentY ~= tY) do
         if not getgenv().AutoClearEnabled then break end
+        
+        -- Menggerakkan 1 grid sahaja setiap pusingan loop
         if currentX ~= tX then 
             currentX = currentX + (tX > currentX and 1 or -1)
         elseif currentY ~= tY then 
@@ -128,7 +121,6 @@ local function IsBlockOrBackgroundThere(gridX, gridY)
         end
     end
     
-    -- Jika ada pintu, kembalikan 'false' agar script mengira block kosong & skip lokasi ini
     if isProtectedDoor then return false end
     
     return hasBreakableBlock
@@ -165,22 +157,24 @@ task.spawn(function()
                 for currentX = startX, endX, stepX do
                     if not getgenv().AutoClearEnabled then break end
                     
-                    -- [[ SISTEM AUTO-RESUME INSTAN ]] --
-                    -- Memindai apakah koordinat ini kosong/ada pintu. Jika iya, skip dalam hitungan 0.001 detik tanpa berjalan.
+                    -- Sistem Auto-Resume Instan (Abaikan ruang kosong dan bergerak ke blok yang belum hancur)
                     if not IsBlockOrBackgroundThere(currentX, blockTargetY) then
                         continue 
                     end
                     
-                    -- 1. Berjalan / Teleport ke atas block target
+                    -- 1. Berjalan ke atas block target
                     WalkToGrid(currentX, currentY)
                     task.wait(getgenv().MoveDelay) 
                     
-                    -- 2. [[ SISTEM ANTI-GETAR & ANTI-JATUH (HEARTBEAT) ]] --
+                    -- 2. Sistem Anti-Getar & Anti-Jatuh (Heartbeat)
                     if MyHitbox then
                         local hoverPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, MyHitbox.Position.Z)
+                        
+                        -- Pastikan tiada connection lama yang masih berjalan
+                        if hoverConnection then hoverConnection:Disconnect() end
+                        
                         hoverConnection = RunService.Heartbeat:Connect(function()
                             if MyHitbox then
-                                -- Membekukan karakter di satu koordinat setiap frame (Anti-gravitasi absolut)
                                 MyHitbox.CFrame = CFrame.new(hoverPos)
                                 MyHitbox.Velocity = Vector3.zero
                                 MyHitbox.RotVelocity = Vector3.zero
@@ -189,12 +183,11 @@ task.spawn(function()
                         end)
                     end
                     
-                    -- 3. Hajar Block / Background sampai habis (Sambil melayang)
+                    -- 3. Hajar Block / Background sampai habis (Sambil melayang di tempat yang sama)
                     local tries = 0
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
                         
-                        -- Cek jika sudah bersih jadi udara
                         if not IsBlockOrBackgroundThere(currentX, blockTargetY) then break end
 
                         RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
@@ -202,7 +195,7 @@ task.spawn(function()
                         tries = tries + 1
                     end
                     
-                    -- 4. Putus status membeku di udara agar bisa pindah grid
+                    -- 4. Putus status melayang (hover) agar karakter boleh menyambung jalan grid seterusnya
                     if hoverConnection then
                         hoverConnection:Disconnect()
                         hoverConnection = nil
@@ -216,7 +209,6 @@ task.spawn(function()
             isRunning = false
             if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
             
-            -- Safety: Putus koneksi melayang jika tombol stop ditekan paksa
             if hoverConnection then
                 hoverConnection:Disconnect()
                 hoverConnection = nil
