@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (NO TELEPORT, WALK ONLY FIX) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (PURE PABRIK MOVEMENT) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v4.5 - Walk Only" 
+getgenv().ScriptVersion = "AutoClear v5.0 - Pabrik Walk" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -15,7 +15,7 @@ getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.05  
-getgenv().StepDelay = 0.1    -- Kelajuan jalan per block (boleh diubah di sini jika terlalu laju/lambat)
+getgenv().StepDelay = 0.1    -- Kecepatan jalan (Sama persis dengan settingan Pabrik)
 getgenv().MoveDelay = 0.15    
 getgenv().MaxHitFailsafe = 25 
 -- ========================================== --
@@ -55,7 +55,7 @@ CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- FUNGSI PERGERAKAN GAME (STRICT WALK PER BLOCK)
+-- FUNGSI PERGERAKAN (MURNI LOGIKA PABRIK)
 -- ========================================== --
 local function WalkToGrid(tX, tY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
@@ -66,11 +66,10 @@ local function WalkToGrid(tX, tY)
     local currentX = math.floor(MyHitbox.Position.X / getgenv().GridSize + 0.5)
     local currentY = math.floor(MyHitbox.Position.Y / getgenv().GridSize + 0.5)
 
-    -- Murni jalan block per block, tiada lagi fungsi teleport lompat jauh.
+    -- Looping jalan murni, 100% copas dari script Pabrik
     while (currentX ~= tX or currentY ~= tY) do
         if not getgenv().AutoClearEnabled then break end
         
-        -- Menggerakkan 1 grid sahaja setiap pusingan loop
         if currentX ~= tX then 
             currentX = currentX + (tX > currentX and 1 or -1)
         elseif currentY ~= tY then 
@@ -79,6 +78,7 @@ local function WalkToGrid(tX, tY)
         
         local newWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
         MyHitbox.CFrame = CFrame.new(newWorldPos)
+        
         if PlayerMovement then pcall(function() PlayerMovement.Position = newWorldPos end) end
         
         task.wait(getgenv().StepDelay)
@@ -111,8 +111,7 @@ local function IsBlockOrBackgroundThere(gridX, gridY)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then
             local partName = string.lower(part.Name)
-            
-            -- SKIP PINTU: Jika ada part bernama door/portal/entrance, tandai sebagai dilindungi
+            -- Melindungi pintu, portal, entrance, dan spawn agar tidak dihancurkan
             if string.find(partName, "door") or string.find(partName, "portal") or string.find(partName, "entrance") or string.find(partName, "spawn") then
                 isProtectedDoor = true
             else
@@ -146,7 +145,7 @@ task.spawn(function()
                 if not getgenv().AutoClearEnabled then break end 
                 local blockTargetY = currentY - 1 
                 
-                -- Menentukan arah loop X berdasarkan zig-zag
+                -- Menentukan arah pergerakan baris X
                 local startX, endX, stepX
                 if arahKanan then
                     startX, endX, stepX = getgenv().AC_StartX, getgenv().AC_EndX, 1
@@ -157,12 +156,12 @@ task.spawn(function()
                 for currentX = startX, endX, stepX do
                     if not getgenv().AutoClearEnabled then break end
                     
-                    -- Sistem Auto-Resume Instan (Abaikan ruang kosong dan bergerak ke blok yang belum hancur)
+                    -- Sistem Auto-Resume Instan (Abaikan ruang kosong)
                     if not IsBlockOrBackgroundThere(currentX, blockTargetY) then
                         continue 
                     end
                     
-                    -- 1. Berjalan ke atas block target
+                    -- 1. Berjalan ke atas block target (Gunakan jalan murni)
                     WalkToGrid(currentX, currentY)
                     task.wait(getgenv().MoveDelay) 
                     
@@ -183,7 +182,7 @@ task.spawn(function()
                         end)
                     end
                     
-                    -- 3. Hajar Block / Background sampai habis (Sambil melayang di tempat yang sama)
+                    -- 3. Hajar Block / Background sampai habis (Sambil melayang)
                     local tries = 0
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
