@@ -1,4 +1,4 @@
--- [[ ZONHUB - AUTOCLEAR MODULE ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (ZIG-ZAG PATTERN) ]] --
 local TargetPage = ... 
 
 -- Mencegah error jika dijalankan tanpa Index
@@ -10,7 +10,7 @@ if not TargetPage then
     TargetPage.Parent = game:GetService("CoreGui"):FindFirstChild("ZonHubIndex") or game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChildWhichIsA("ScreenGui")
 end
 
-getgenv().ScriptVersion = "AutoClear v1.2" 
+getgenv().ScriptVersion = "AutoClear v1.5 - ZigZag" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL (Bisa diatur via UI)
@@ -70,15 +70,15 @@ end
 -- ========================================== --
 -- MEMBANGUN MENU UI
 -- ========================================== --
-CreateToggle(TargetPage, "Start Auto Clear", "AutoClearEnabled")
+CreateToggle(TargetPage, "Start Auto Clear World", "AutoClearEnabled")
 CreateSlider(TargetPage, "Speed Script", 1, 100, 80, "AC_Speed")
 CreateSlider(TargetPage, "Start X", 0, 500, 0, "AC_StartX")
 CreateSlider(TargetPage, "End X", 0, 500, 100, "AC_EndX")
-CreateSlider(TargetPage, "Start Y", 0, 100, 37, "AC_StartY")
-CreateSlider(TargetPage, "End Y", 0, 100, 6, "AC_EndY")
+CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
+CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- FUNGSI API GAME (Ganti isi fungsi sesuai game Anda)
+-- FUNGSI API GAME
 -- ========================================== --
 local function GetDelay()
     local speed = math.clamp(getgenv().AC_Speed, 1, 100)
@@ -87,44 +87,53 @@ local function GetDelay()
 end
 
 local function MoveTo(x, y)
-    -- Contoh: Teleport karakter ke X, Y
+    -- TODO: Masukkan script pemindah/teleport karakter game Anda di sini
+    -- Contoh umum Roblox:
+    -- local HRP = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    -- if HRP then HRP.CFrame = CFrame.new(x * 3, y * 3, 0) end 
+    -- (Catatan: * 3 adalah skala block standar di banyak game voxel, sesuaikan jika perlu)
 end
 
 local function IsBlockSolid(x, y)
-    -- Return true jika block masih ada, false jika sudah hancur
+    -- TODO: Masukkan logika deteksi block Anda di sini
+    -- Wajib return "true" jika block masih bisa dipukul, "false" jika sudah kosong/hancur total
     return false 
 end
 
 local function PunchBlock(x, y)
-    -- Logika memukul block
+    -- TODO: Masukkan script untuk klik/pukul/hancurkan block di sini
 end
 
 -- ========================================== --
--- LOGIKA UTAMA AUTO CLEAR (THREAD)
+-- LOGIKA ZIG-ZAG UTAMA (THREAD)
 -- ========================================== --
 local isRunning = false
 
 task.spawn(function()
-    while task.wait(0.5) do
-        -- Jika Toggle dinyalakan dan script belum berjalan
+    while task.wait(0.2) do
+        -- Jika Toggle dinyalakan dan loop belum berjalan
         if getgenv().AutoClearEnabled and not isRunning then
             isRunning = true
+            
+            -- Set Awal arah gerak (Kanan)
             local arahKanan = true 
             
-            -- Loop dari StartY turun sampai EndY
+            -- 1. Loop menurun berdasarkan ketinggian (Y)
             for currentY = getgenv().AC_StartY, getgenv().AC_EndY, -1 do
-                if not getgenv().AutoClearEnabled then break end -- Berhenti jika Toggle dimatikan
+                if not getgenv().AutoClearEnabled then break end -- Break instan jika tombol dimatikan
                 
-                local blockTargetY = currentY - 1 
-
+                local blockTargetY = currentY - 1 -- Menargetkan blok tepat di bawah posisi karakter
+                
                 if arahKanan then
-                    -- Kiri ke Kanan
+                    -- 2A. Bergerak dari KIRI (StartX) ke KANAN (EndX)
                     for currentX = getgenv().AC_StartX, getgenv().AC_EndX do
                         if not getgenv().AutoClearEnabled then break end
                         
+                        -- Pindah langsung ke atas block
                         MoveTo(currentX, currentY)
                         task.wait(GetDelay()) 
                         
+                        -- Hajar block di bawah sampai benar-benar hancur
                         while IsBlockSolid(currentX, blockTargetY) do
                             if not getgenv().AutoClearEnabled then break end
                             PunchBlock(currentX, blockTargetY)
@@ -132,13 +141,15 @@ task.spawn(function()
                         end
                     end
                 else
-                    -- Kanan ke Kiri
+                    -- 2B. Bergerak dari KANAN (EndX) ke KIRI (StartX) (Turun langsung di tempat, jalan mundur)
                     for currentX = getgenv().AC_EndX, getgenv().AC_StartX, -1 do
                         if not getgenv().AutoClearEnabled then break end
                         
+                        -- Pindah langsung ke atas block
                         MoveTo(currentX, currentY)
                         task.wait(GetDelay()) 
                         
+                        -- Hajar block di bawah sampai benar-benar hancur
                         while IsBlockSolid(currentX, blockTargetY) do
                             if not getgenv().AutoClearEnabled then break end
                             PunchBlock(currentX, blockTargetY)
@@ -147,12 +158,16 @@ task.spawn(function()
                     end
                 end
                 
-                arahKanan = not arahKanan -- Balik arah untuk baris selanjutnya
+                -- Membalik arah (Kanan jadi Kiri, Kiri jadi Kanan) untuk layer selanjutnya
+                arahKanan = not arahKanan 
             end
             
-            -- Reset status jika selesai atau dimatikan
+            -- Reset toggle saat sudah mencapai EndY (Y=6)
             isRunning = false
-            getgenv().AutoClearEnabled = false
+            if getgenv().AutoClearEnabled then
+                getgenv().AutoClearEnabled = false
+                -- (Opsional) Tambahkan notifikasi selesai di sini
+            end
         end
     end
 end)
