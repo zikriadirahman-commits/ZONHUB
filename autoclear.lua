@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (PURE PABRIK MOVEMENT) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (ZERO GRAVITY & SMART SKIP) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v5.0 - Pabrik Walk" 
+getgenv().ScriptVersion = "AutoClear v6.0 - Perfect Zero Gravity" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -15,9 +15,9 @@ getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.05  
-getgenv().StepDelay = 0.1    -- Kecepatan jalan (Sama persis dengan settingan Pabrik)
-getgenv().MoveDelay = 0.15    
-getgenv().MaxHitFailsafe = 25 
+getgenv().StepDelay = 0.1    -- Jeda langkah (biar jalannya tidak nge-glitch)
+getgenv().MoveDelay = 0.1    -- Jeda sebelum mulai mukul
+getgenv().MaxHitFailsafe = 20 -- Batas pukulan maksimal per block
 -- ========================================== --
 
 local Players = game:GetService("Players")
@@ -25,7 +25,6 @@ local LP = Players.LocalPlayer
 local RS = game:GetService("ReplicatedStorage")
 local UIS = game:GetService("UserInputService")
 local VirtualUser = game:GetService("VirtualUser") 
-local RunService = game:GetService("RunService")
 
 -- Anti AFK
 LP.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
@@ -55,18 +54,17 @@ CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- FUNGSI PERGERAKAN (MURNI LOGIKA PABRIK)
+-- FUNGSI PERGERAKAN JALAN MURNI 
 -- ========================================== --
 local function WalkToGrid(tX, tY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
     if not MyHitbox then return end
 
-    local startZ = MyHitbox.Position.Z
     local currentX = math.floor(MyHitbox.Position.X / getgenv().GridSize + 0.5)
     local currentY = math.floor(MyHitbox.Position.Y / getgenv().GridSize + 0.5)
 
-    -- Looping jalan murni, 100% copas dari script Pabrik
+    -- Looping jalan murni step by step
     while (currentX ~= tX or currentY ~= tY) do
         if not getgenv().AutoClearEnabled then break end
         
@@ -76,9 +74,8 @@ local function WalkToGrid(tX, tY)
             currentY = currentY + (tY > currentY and 1 or -1) 
         end
         
-        local newWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
+        local newWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, MyHitbox.Position.Z)
         MyHitbox.CFrame = CFrame.new(newWorldPos)
-        
         if PlayerMovement then pcall(function() PlayerMovement.Position = newWorldPos end) end
         
         task.wait(getgenv().StepDelay)
@@ -86,9 +83,9 @@ local function WalkToGrid(tX, tY)
 end
 
 -- ========================================== --
--- FUNGSI SCAN SMART DETECT (DENGAN SKIP PINTU)
+-- FUNGSI SCAN SPESIFIK (WHITELIST & BLACKLIST)
 -- ========================================== --
-local function IsBlockOrBackgroundThere(gridX, gridY)
+local function NeedsBreaking(gridX, gridY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
     if not MyHitbox then return false end
@@ -99,30 +96,31 @@ local function IsBlockOrBackgroundThere(gridX, gridY)
     local filterObjects = {LP.Character, HitboxFolder, workspace.CurrentCamera}
     if workspace:FindFirstChild("DroppedItems") then table.insert(filterObjects, workspace.DroppedItems) end
     if workspace:FindFirstChild("Items") then table.insert(filterObjects, workspace.Items) end
-    
     params.FilterDescendantsInstances = filterObjects
     params.FilterType = Enum.RaycastFilterType.Exclude
 
+    -- Scan ruang 3D ke belakang untuk mendeteksi background juga
     local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
     
-    local isProtectedDoor = false
-    local hasBreakableBlock = false
+    local targetFound = false
     
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then
-            local partName = string.lower(part.Name)
-            -- Melindungi pintu, portal, entrance, dan spawn agar tidak dihancurkan
-            if string.find(partName, "door") or string.find(partName, "portal") or string.find(partName, "entrance") or string.find(partName, "spawn") then
-                isProtectedDoor = true
-            else
-                hasBreakableBlock = true
+            local pName = string.lower(part.Name)
+            
+            -- 1. SISTEM SKIP: Jangan hancurkan Pintu, Entrance, Portal, Spawn, atau Bedrock
+            if string.find(pName, "door") or string.find(pName, "entrance") or string.find(pName, "portal") or string.find(pName, "spawn") or string.find(pName, "bedrock") then
+                return false -- Langsung SKIP kordinat ini, anggap tidak ada target!
+            end
+            
+            -- 2. SISTEM TARGET: Hancurkan jika mendeteksi Dirt, Stone, atau Background
+            if string.find(pName, "dirt") or string.find(pName, "stone") or string.find(pName, "background") or string.find(pName, "bg") then
+                targetFound = true
             end
         end
     end
     
-    if isProtectedDoor then return false end
-    
-    return hasBreakableBlock
+    return targetFound
 end
 
 -- ========================================== --
@@ -131,8 +129,6 @@ end
 local isRunning = false
 
 task.spawn(function()
-    local hoverConnection = nil
-
     while task.wait(0.2) do
         if getgenv().AutoClearEnabled and not isRunning then
             isRunning = true
@@ -141,11 +137,25 @@ task.spawn(function()
             local HitboxFolder = workspace:FindFirstChild("Hitbox")
             local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
 
+            -- [[ SISTEM ANTI-JATUH PERMANEN ]]
+            -- Memasukkan Zero Gravity selama script menyala
+            local hoverBV = nil
+            if MyHitbox then
+                -- Hapus jika ada sisa dari bug sebelumnya
+                local oldBV = MyHitbox:FindFirstChild("AutoClearFloat")
+                if oldBV then oldBV:Destroy() end
+
+                hoverBV = Instance.new("BodyVelocity")
+                hoverBV.Name = "AutoClearFloat"
+                hoverBV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                hoverBV.Velocity = Vector3.zero
+                hoverBV.Parent = MyHitbox
+            end
+
             for currentY = getgenv().AC_StartY, getgenv().AC_EndY, -1 do
                 if not getgenv().AutoClearEnabled then break end 
                 local blockTargetY = currentY - 1 
                 
-                -- Menentukan arah pergerakan baris X
                 local startX, endX, stepX
                 if arahKanan then
                     startX, endX, stepX = getgenv().AC_StartX, getgenv().AC_EndX, 1
@@ -156,62 +166,38 @@ task.spawn(function()
                 for currentX = startX, endX, stepX do
                     if not getgenv().AutoClearEnabled then break end
                     
-                    -- Sistem Auto-Resume Instan (Abaikan ruang kosong)
-                    if not IsBlockOrBackgroundThere(currentX, blockTargetY) then
+                    -- [[ SISTEM AUTO-RESUME TERCEPAT ]]
+                    -- Jika grid ini kosong/terdapat pintu, dia akan langsung SKIP secara virtual (0 detik)
+                    -- Bot otomatis mencari block tertinggi dan terdekat dari posisinya!
+                    if not NeedsBreaking(currentX, blockTargetY) then
                         continue 
                     end
                     
-                    -- 1. Berjalan ke atas block target (Gunakan jalan murni)
+                    -- Berjalan ke grid (Aman dari jatuh karena ada Zero Gravity permanen)
                     WalkToGrid(currentX, currentY)
                     task.wait(getgenv().MoveDelay) 
                     
-                    -- 2. Sistem Anti-Getar & Anti-Jatuh (Heartbeat)
-                    if MyHitbox then
-                        local hoverPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, MyHitbox.Position.Z)
-                        
-                        -- Pastikan tiada connection lama yang masih berjalan
-                        if hoverConnection then hoverConnection:Disconnect() end
-                        
-                        hoverConnection = RunService.Heartbeat:Connect(function()
-                            if MyHitbox then
-                                MyHitbox.CFrame = CFrame.new(hoverPos)
-                                MyHitbox.Velocity = Vector3.zero
-                                MyHitbox.RotVelocity = Vector3.zero
-                                if PlayerMovement then pcall(function() PlayerMovement.Position = hoverPos end) end
-                            end
-                        end)
-                    end
-                    
-                    -- 3. Hajar Block / Background sampai habis (Sambil melayang)
+                    -- Hajar Target!
                     local tries = 0
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
                         
-                        if not IsBlockOrBackgroundThere(currentX, blockTargetY) then break end
+                        -- Cek jika dirt/stone sudah lenyap
+                        if not NeedsBreaking(currentX, blockTargetY) then break end
 
                         RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                         task.wait(getgenv().BreakDelay)
                         tries = tries + 1
-                    end
-                    
-                    -- 4. Putus status melayang (hover) agar karakter boleh menyambung jalan grid seterusnya
-                    if hoverConnection then
-                        hoverConnection:Disconnect()
-                        hoverConnection = nil
                     end
                 end
                 
                 arahKanan = not arahKanan 
             end
             
-            -- Matikan script jika sudah selesai
+            -- Matikan script dan matikan efek melayang
             isRunning = false
             if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
-            
-            if hoverConnection then
-                hoverConnection:Disconnect()
-                hoverConnection = nil
-            end
+            if hoverBV then hoverBV:Destroy() end
         end
     end
 end)
