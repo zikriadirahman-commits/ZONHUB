@@ -162,4 +162,6 @@ CreateAutoLoadTab("Manager", "Sistem Inventory & Sortir Barang.", "https://raw.g
 CreateAutoLoadTab("Autoclear", "Sistem Inventory & Sortir Barang.", "https://raw.githubusercontent.com/zikriadirahman-commits/ZONHUB/refs/heads/main/autoclear.lua")
 CreateAutoLoadTab("Spam", "Auto Spam.", "https://raw.githubusercontent.com/zikriadirahman-commits/ZONHUB/refs/heads/main/autochat.lua")
 CreateAutoLoadTab("terbang", "Auto Spam.", "https://raw.githubusercontent.com/zikriadirahman-commits/ZONHUB/refs/heads/main/terbang.lua")
+CreateAutoLoadTab("anti", "Auto Spam.", "https://raw.githubusercontent.com/zikriadirahman-commits/ZONHUB/refs/heads/main/anti.lua")
+
 
