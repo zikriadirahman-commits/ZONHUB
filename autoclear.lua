@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (100% PURE PABRIK LOGIC) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (CX.FARM GLIDE CLONE & EXACT FREEZE) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v19 - The Pabrik Engine" 
+getgenv().ScriptVersion = "AutoClear v20 - Glide Edition" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -15,11 +15,9 @@ getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.05  
-getgenv().StepDelay = 0.1    -- Jeda jalan murni per block (Persis Pabrik)
-getgenv().MoveDelay = 0.15    
-getgenv().MaxHitFailsafe = 25 
+getgenv().GlideSpeed = 25    -- Kecepatan meluncur (mirip cx.farm)
+getgenv().MaxHitFailsafe = 20 
 
--- Blacklist untuk pintu, bedrock, dan error block
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 -- ========================================== --
 
@@ -28,6 +26,7 @@ local LP = Players.LocalPlayer
 local RS = game:GetService("ReplicatedStorage")
 local UIS = game:GetService("UserInputService")
 local VirtualUser = game:GetService("VirtualUser") 
+local TweenService = game:GetService("TweenService")
 
 -- Anti AFK
 LP.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
@@ -50,74 +49,73 @@ local function CreateSlider(Parent, Text, Min, Max, Default, Var) local Frame = 
 -- MEMBANGUN MENU UI 
 -- ========================================== --
 CreateToggle(TargetPage, "Start Auto Clear World", "AutoClearEnabled")
+CreateSlider(TargetPage, "Glide Speed", 10, 100, 25, "GlideSpeed")
 CreateSlider(TargetPage, "Start X", 0, 500, 0, "AC_StartX")
 CreateSlider(TargetPage, "End X", 0, 500, 100, "AC_EndX")
 CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- LANTAI KACA PENYELAMAT (AGAR TIDAK JATUH SAAT JALAN DI UDARA)
+-- FUNGSI MEMATUNG TOTAL (ANCHOR)
 -- ========================================== --
-local WalkFloor = workspace:FindFirstChild("ZONHUB_WalkFloor")
-if not WalkFloor then
-    WalkFloor = Instance.new("Part")
-    WalkFloor.Name = "ZONHUB_WalkFloor"
-    WalkFloor.Size = Vector3.new(getgenv().GridSize, 1, getgenv().GridSize)
-    WalkFloor.Anchored = true
-    WalkFloor.CanCollide = true
-    WalkFloor.Transparency = 1 
-    WalkFloor.Parent = workspace
-end
-WalkFloor.Position = Vector3.new(0, 9999, 0)
+local function FreezeCharacter(state)
+    local Char = LP.Character
+    local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
+    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
 
--- ========================================== --
--- FUNGSI JALAN (100% COPY PASTE DARI PABRIK)
--- ========================================== --
-local function WalkToGrid(tX, tY)
-    local HitboxFolder = workspace:FindFirstChild("Hitbox")
-    local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
-    if not MyHitbox then return end
-
-    local startZ = MyHitbox.Position.Z
-    local currentX = math.floor(MyHitbox.Position.X / getgenv().GridSize + 0.5)
-    local currentY = math.floor(MyHitbox.Position.Y / getgenv().GridSize + 0.5)
-
-    -- Looping jalan murni 1 per 1 tanpa skip (Anti Glitch Balik-balik)
-    while (currentX ~= tX or currentY ~= tY) do
-        if not getgenv().AutoClearEnabled then break end
-        
-        if currentX ~= tX then 
-            currentX = currentX + (tX > currentX and 1 or -1)
-        elseif currentY ~= tY then 
-            currentY = currentY + (tY > currentY and 1 or -1) 
-        end
-        
-        -- Memindahkan lantai kaca tepat 1 block di bawah karakter agar ia bisa menapak di udara
-        WalkFloor.Position = Vector3.new(currentX * getgenv().GridSize, (currentY - 1) * getgenv().GridSize, startZ)
-        
-        local newWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
-        MyHitbox.CFrame = CFrame.new(newWorldPos)
-        
-        if PlayerMovement then pcall(function() PlayerMovement.Position = newWorldPos end) end
-        
-        task.wait(getgenv().StepDelay)
+    if Hitbox then 
+        Hitbox.Anchored = state 
+        Hitbox.CanCollide = not state -- Matikan tabrakan fisik agar tidak nabrak saat meluncur
+    end
+    if HRP then 
+        HRP.Anchored = state 
+        HRP.CanCollide = not state
     end
 end
 
 -- ========================================== --
--- FUNGSI SCAN PINTAR (LEWATI PINTU & BEDROCK)
+-- FUNGSI MELUNCUR (GLIDE) DENGAN TWEENSERVICE
 -- ========================================== --
-local function NeedsBreaking(gridX, gridY)
-    -- Lewati jika sudah di-blacklist
-    if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return false end
+local function GlideTo(tX, tY, targetZ)
+    local HitboxFolder = workspace:FindFirstChild("Hitbox")
+    local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
+    local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    if not MyHitbox then return end
 
+    local targetPos = Vector3.new(tX * getgenv().GridSize, tY * getgenv().GridSize, targetZ)
+    local distance = (MyHitbox.Position - targetPos).Magnitude
+    
+    if distance < 0.1 then return end -- Sudah di posisi
+
+    -- Menghitung waktu luncur (Jarak dibagi Kecepatan)
+    local timeToTake = distance / getgenv().GlideSpeed
+    if timeToTake < 0.05 then timeToTake = 0.05 end 
+
+    local tweenInfo = TweenInfo.new(timeToTake, Enum.EasingStyle.Linear)
+    
+    -- Meluncurkan Hitbox & Tubuh secara bersamaan
+    local tweenHitbox = TweenService:Create(MyHitbox, tweenInfo, {CFrame = CFrame.new(targetPos)})
+    tweenHitbox:Play()
+    
+    if HRP then 
+        TweenService:Create(HRP, tweenInfo, {CFrame = CFrame.new(targetPos)}):Play() 
+    end
+    if PlayerMovement then pcall(function() PlayerMovement.Position = targetPos end) end
+    
+    tweenHitbox.Completed:Wait()
+end
+
+-- ========================================== --
+-- FUNGSI SCAN PINTAR
+-- ========================================== --
+local function CheckGridState(gridX, gridY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
     local startZ = MyHitbox and MyHitbox.Position.Z or 0
     
     local checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, startZ)
     
-    local filterObjects = {LP.Character, HitboxFolder, workspace.CurrentCamera, WalkFloor}
+    local filterObjects = {LP.Character, HitboxFolder, workspace.CurrentCamera}
     if workspace:FindFirstChild("DroppedItems") then table.insert(filterObjects, workspace.DroppedItems) end
     if workspace:FindFirstChild("Items") then table.insert(filterObjects, workspace.Items) end
     
@@ -127,23 +125,20 @@ local function NeedsBreaking(gridX, gridY)
 
     local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(2, 2, 50), params)
     
-    local isProtected = false
-    local hasTarget = false
+    local state = { hasTarget = false, isObstacle = false }
     
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then
             local pName = string.lower(part.Name)
-            -- Benda yang DILARANG dihancurkan
             if string.find(pName, "door") or string.find(pName, "portal") or string.find(pName, "entrance") or string.find(pName, "spawn") or string.find(pName, "bedrock") or string.find(pName, "border") then
-                isProtected = true
+                state.isObstacle = true
             else
-                hasTarget = true
+                state.hasTarget = true
             end
         end
     end
     
-    if isProtected then return false end
-    return hasTarget
+    return state
 end
 
 -- ========================================== --
@@ -159,13 +154,18 @@ task.spawn(function()
             
             local HitboxFolder = workspace:FindFirstChild("Hitbox")
             local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
+            local startZ = MyHitbox and MyHitbox.Position.Z or 0
 
-            -- [[ PRE-SCAN (SMART RESUME TERBAIK) ]] --
+            -- MENGUNCI KARAKTER SEJAK AWAL AGAR MELAYANG
+            FreezeCharacter(true)
+
+            -- [[ PRE-SCAN (SMART RESUME) ]] --
             local highestTargetY = getgenv().AC_StartY
             for scanY = getgenv().AC_StartY, getgenv().AC_EndY, -1 do
                 local foundBlock = false
                 for scanX = getgenv().AC_StartX, getgenv().AC_EndX do
-                    if NeedsBreaking(scanX, scanY - 1) then
+                    local st = CheckGridState(scanX, scanY - 1)
+                    if st.hasTarget and not st.isObstacle and not getgenv().AC_Blacklist[scanX .. "," .. (scanY-1)] then
                         foundBlock = true
                         break
                     end
@@ -186,48 +186,37 @@ task.spawn(function()
                 for currentX = startX, endX, stepX do
                     if not getgenv().AutoClearEnabled then break end
                     
-                    -- JALAN FISIK KE SETIAP BLOCK (Wajib agar tidak nge-glitch ditarik game)
-                    WalkToGrid(currentX, currentY)
+                    if getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] then continue end
                     
-                    -- Jika block di bawahnya adalah Pintu / Bedrock / Kosong, abaikan memukul
-                    if not NeedsBreaking(currentX, blockTargetY) then
-                        continue 
+                    local gridState = CheckGridState(currentX, blockTargetY)
+                    
+                    -- JIKA ADA PINTU/BEDROCK DI DEPAN: Meluncur ke atas (Y+1) untuk menghindari tabrakan
+                    if gridState.isObstacle then
+                        -- Terbang meluncur melewati atas pintu
+                        GlideTo(currentX, currentY + 1, startZ)
+                        continue
                     end
                     
-                    task.wait(getgenv().MoveDelay) 
+                    -- SKIP KOSONG
+                    if not gridState.hasTarget then continue end
                     
-                    -- ==================================================== --
-                    -- LOGIKA MELAYANG MURNI DARI PABRIK (ANTI GETAR 100%)
-                    -- ==================================================== --
+                    -- 1. MELUNCUR HALUS KE ATAS TARGET
+                    GlideTo(currentX, currentY, startZ)
+                    
+                    -- 2. HANCURKAN BLOCK (Posisi sudah di-anchor/kunci mati, tidak akan turun!)
                     local tries = 0
-                    local startZ = MyHitbox and MyHitbox.Position.Z or 0
-                    
-                    -- Sembunyikan lantai kaca saat memukul agar tidak menghalangi pukulan
-                    WalkFloor.Position = Vector3.new(0, 9999, 0)
-                    
-                    -- Matikan fisik tubuh agar tidak memantul-mantul (Trik Pabrik)
-                    if MyHitbox then MyHitbox.CanCollide = false end
-                    
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
-                        if not NeedsBreaking(currentX, blockTargetY) then break end
                         
-                        -- Tahan Posisi CFrame berulang kali di dalam loop (Trik Pabrik)
-                        if MyHitbox then 
-                            local lockPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
-                            MyHitbox.CFrame = CFrame.new(lockPos)
-                            if PlayerMovement then pcall(function() PlayerMovement.Position = lockPos end) end
-                        end 
+                        -- Cek Real-time
+                        local check = CheckGridState(currentX, blockTargetY)
+                        if not check.hasTarget or check.isObstacle then break end
 
                         RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                         task.wait(getgenv().BreakDelay)
                         tries = tries + 1
                     end
                     
-                    -- Kembalikan fisik tubuh normal setelah block hancur
-                    if MyHitbox then MyHitbox.CanCollide = true end
-                    
-                    -- Blacklist jika nyangkut
                     if tries >= getgenv().MaxHitFailsafe then
                         getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                     end
@@ -238,8 +227,9 @@ task.spawn(function()
             
             isRunning = false
             if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
-            if WalkFloor then WalkFloor.Position = Vector3.new(0, 9999, 0) end
-            if MyHitbox then MyHitbox.CanCollide = true end
+            
+            -- KEMBALIKAN FISIK NORMAL SAAT SELESAI
+            FreezeCharacter(false)
         end
     end
 end)
