@@ -1,72 +1,76 @@
--- [[ ZONHUB - ANTI LAVA MODULE ]] --
-local TargetPage = ... 
-if not TargetPage then return end
-
-getgenv().ScriptVersion = "AntiLava v1.0 - Heat Resistance" 
-
--- ========================================== --
--- VARIABEL GLOBAL 
--- ========================================== --
-getgenv().AntiLavaEnabled = false
--- ========================================== --
-
+-- ServerScriptService/LavaDamage.server.lua
 local Players = game:GetService("Players")
-local LP = Players.LocalPlayer
-local RunService = game:GetService("RunService")
+local CollectionService = game:GetService("CollectionService")
 
--- ========================================== --
--- FUNGSI UI UTILITY
--- ========================================== --
-local Theme = { Item = Color3.fromRGB(45, 45, 45), Text = Color3.fromRGB(255, 255, 255), Purple = Color3.fromRGB(140, 80, 255) }
+local DAMAGE_PER_TICK = 8
+local TICK = 0.5
 
-local function CreateToggle(Parent, Text, Var) 
-    local Btn = Instance.new("TextButton", Parent); Btn.BackgroundColor3 = Theme.Item; Btn.Size = UDim2.new(1, -10, 0, 35); Btn.Text = ""; Btn.AutoButtonColor = false
-    local C = Instance.new("UICorner", Btn); C.CornerRadius = UDim.new(0, 6)
-    local T = Instance.new("TextLabel", Btn); T.Text = Text; T.TextColor3 = Theme.Text; T.Font = Enum.Font.GothamSemibold; T.TextSize = 12; T.Size = UDim2.new(1, -40, 1, 0); T.Position = UDim2.new(0, 10, 0, 0); T.BackgroundTransparency = 1; T.TextXAlignment = Enum.TextXAlignment.Left
-    local IndBg = Instance.new("Frame", Btn); IndBg.Size = UDim2.new(0, 36, 0, 18); IndBg.Position = UDim2.new(1, -45, 0.5, -9); IndBg.BackgroundColor3 = Color3.fromRGB(30,30,30)
-    local IC = Instance.new("UICorner", IndBg); IC.CornerRadius = UDim.new(1,0)
-    local Dot = Instance.new("Frame", IndBg); Dot.Size = UDim2.new(0, 14, 0, 14); Dot.Position = UDim2.new(0, 2, 0.5, -7); Dot.BackgroundColor3 = Color3.fromRGB(100,100,100)
-    local DC = Instance.new("UICorner", Dot); DC.CornerRadius = UDim.new(1,0)
-    
-    Btn.MouseButton1Click:Connect(function() 
-        getgenv()[Var] = not getgenv()[Var]
-        if getgenv()[Var] then 
-            Dot:TweenPosition(UDim2.new(1, -16, 0.5, -7), "Out", "Quad", 0.2, true)
-            Dot.BackgroundColor3 = Color3.new(1,1,1); IndBg.BackgroundColor3 = Theme.Purple 
-        else 
-            Dot:TweenPosition(UDim2.new(0, 2, 0.5, -7), "Out", "Quad", 0.2, true)
-            Dot.BackgroundColor3 = Color3.fromRGB(100,100,100); IndBg.BackgroundColor3 = Color3.fromRGB(30,30,30) 
-        end 
-    end) 
+local touching = {} -- [Humanoid] = true/false
+
+local function getHumanoid(hit)
+    local model = hit and hit.Parent
+    if not model then return end
+    return model:FindFirstChildOfClass("Humanoid")
 end
 
--- ========================================== --
--- MEMBANGUN MENU UI 
--- ========================================== --
-CreateToggle(TargetPage, "Enable Anti Lava", "AntiLavaEnabled")
+local function startDot(hum)
+    if touching[hum] then return end
+    touching[hum] = true
 
--- ========================================== --
--- LOGIKA TAHAN LAVA (GOD MODE BYPASS)
--- ========================================== --
-RunService.Stepped:Connect(function()
-    if getgenv().AntiLavaEnabled then
-        pcall(function()
-            local Char = LP.Character
-            if Char then
-                -- Metode 1: Mencari part bernama Lava di sekitar kaki dan mematikan tabrakannya
-                for _, part in pairs(workspace:GetPartBoundsInBox(Char.PrimaryPart.CFrame, Vector3.new(4, 6, 4))) do
-                    if part.Name:lower():find("lava") or part.Name:lower():find("magma") then
-                        part.CanTouch = false -- Mematikan sensor panas lava agar tidak kena damage
-                    end
-                end
-                
-                -- Metode 2: Menghapus TouchInterest (sensor sentuhan damage) dari karakter
-                for _, v in pairs(Char:GetDescendants()) do
-                    if v:IsA("TouchTransmitter") then
-                        v:Destroy()
-                    end
-                end
+    task.spawn(function()
+        while touching[hum] and hum.Parent do
+            -- immunity check (SERVER-SIDE)
+            if not hum:GetAttribute("LavaImmune") then
+                hum:TakeDamage(DAMAGE_PER_TICK)
             end
-        end)
-    end
+            task.wait(TICK)
+        end
+    end)
+end
+
+local function stopDot(hum)
+    touching[hum] = nil
+end
+
+local function hookLavaPart(part)
+    if not part:IsA("BasePart") then return end
+
+    part.Touched:Connect(function(hit)
+        local hum = getHumanoid(hit)
+        if hum then startDot(hum) end
+    end)
+
+    part.TouchEnded:Connect(function(hit)
+        local hum = getHumanoid(hit)
+        if hum then stopDot(hum) end
+    end)
+end
+
+-- Hook semua part yang di-tag Lava
+for _, p in ipairs(CollectionService:GetTagged("Lava")) do
+    hookLavaPart(p)
+end
+CollectionService:GetInstanceAddedSignal("Lava"):Connect(hookLavaPart)
+
+-- (opsional) fallback kalau kamu nggak pakai tag:
+-- for _, p in ipairs(workspace:GetDescendants()) do
+--     if p:IsA("BasePart") and p.Name == "Lava" then hookLavaPart(p) end
+-- end
+
+-- contoh cara bikin pemain kebal:
+-- set attribute saat spawn (misal semua kebal)
+Players.PlayerAdded:Connect(function(plr)
+    plr.CharacterAdded:Connect(function(char)
+        local hum = char:WaitForChild("Humanoid", 5)
+        if hum then
+            -- set true kalau mau kebal
+            -- hum:SetAttribute("LavaImmune", true)
+
+            -- atau kebal sementara 10 detik:
+            -- hum:SetAttribute("LavaImmune", true)
+            -- task.delay(10, function()
+            --     if hum.Parent then hum:SetAttribute("LavaImmune", false) end
+            -- end)
+        end
+    end)
 end)
