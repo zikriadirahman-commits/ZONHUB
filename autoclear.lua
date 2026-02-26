@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (CX FLY CLONE & SMART PARKOUR) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (ZERO JITTER & CX FLY LOGIC) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v27 - The True CX Clone" 
+getgenv().ScriptVersion = "AutoClear v28 - Final Perfection" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -15,7 +15,7 @@ getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.05  
-getgenv().StepDelay = 0.1    -- Jeda jalan per block MURNI
+getgenv().StepDelay = 0.1    -- Jeda jalan per grid (Anti-Blink/Glitch)
 getgenv().MoveDelay = 0.15    
 getgenv().MaxHitFailsafe = 20 
 
@@ -55,7 +55,7 @@ CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- FUNGSI TERBANG CX (ANTI GETAR & ANTI JATUH 100%)
+-- FUNGSI TERBANG CX (ANTI GETAR & STAY DI ATAS)
 -- ========================================== --
 local function ToggleCXFly(state)
     local Char = LP.Character
@@ -63,22 +63,22 @@ local function ToggleCXFly(state)
     local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
 
-    if Hum then 
-        -- RAHASIA UTAMA: Mematikan sistem fisik Humanoid agar tidak melawan BodyVelocity
-        Hum.PlatformStand = state 
-    end
+    -- RAHASIA ANTI GETAR: PlatformStand akan menidurkan sistem fisik karakter, 
+    -- sehingga dia tidak akan memaksakan animasi jatuh yang bikin getar!
+    if Hum then Hum.PlatformStand = state end
 
     local parts = {HRP, Hitbox}
     for _, part in ipairs(parts) do
         if part then
             if state then
-                part.Velocity = Vector3.zero
+                part.CanCollide = false -- Mulus tembus pintu
                 local bv = part:FindFirstChild("ZON_FlyBV") or Instance.new("BodyVelocity")
                 bv.Name = "ZON_FlyBV"
                 bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-                bv.Velocity = Vector3.zero -- Kecepatan 0 = Diam mematung
+                bv.Velocity = Vector3.zero -- Mengunci di udara secara total
                 bv.Parent = part
             else
+                part.CanCollide = true
                 if part:FindFirstChild("ZON_FlyBV") then part.ZON_FlyBV:Destroy() end
             end
         end
@@ -86,7 +86,7 @@ local function ToggleCXFly(state)
 end
 
 -- ========================================== --
--- FUNGSI SCAN PINTAR (DETEKSI OBSTACLE)
+-- FUNGSI SCAN PINTAR (DETEKSI PINTU & BEDROCK)
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -137,7 +137,7 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- FUNGSI JALAN PINTAR (AUTO-PARKOUR LEWATI PINTU)
+-- FUNGSI JALAN PINTAR (AUTO-PARKOUR PINTU)
 -- ========================================== --
 local function WalkToGrid(tX, tY)
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
@@ -154,9 +154,10 @@ local function WalkToGrid(tX, tY)
         local nextX = currentX
         local nextY = currentY
 
+        -- Prioritas jalan: X dulu baru Y
         if currentX ~= tX then 
             local stepDir = (tX > currentX) and 1 or -1
-            -- JIKA DEPAN ADA PINTU, NAIK 1 BLOCK KE ATAS DULU
+            -- JIKA DEPAN ADA PINTU/BEDROCK, TERBANG NAIK 1 BLOCK DULU
             if IsObstacle(currentX + stepDir, currentY) then
                 nextY = currentY + 1
             else
@@ -165,7 +166,7 @@ local function WalkToGrid(tX, tY)
         elseif currentY < tY then 
             nextY = currentY + 1
         elseif currentY > tY then 
-            -- Jangan memaksakan turun jika tepat di bawah kita ada pintu
+            -- Jangan turun jika di bawah persis ada pintu/bedrock!
             if IsObstacle(currentX, currentY - 1) then break end
             nextY = currentY - 1 
         end
@@ -175,7 +176,7 @@ local function WalkToGrid(tX, tY)
         
         local newPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
         
-        -- Menggerakkan kedua bagian secara sinkron ke server
+        -- Memindahkan posisi dengan mulus
         if Hitbox then Hitbox.CFrame = CFrame.new(newPos); Hitbox.Velocity = Vector3.zero end
         if HRP then HRP.CFrame = CFrame.new(newPos); HRP.Velocity = Vector3.zero end
         if PlayerMovement then pcall(function() PlayerMovement.Position = newPos end) end
@@ -195,7 +196,7 @@ task.spawn(function()
             isRunning = true
             local arahKanan = true 
 
-            -- [[ AKTIFKAN TERBANG (NO JITTER) ]] --
+            -- [[ AKTIFKAN TERBANG MEMATUNG ]] --
             ToggleCXFly(true)
 
             -- [[ PRE-SCAN (SMART RESUME) ]] --
@@ -230,21 +231,14 @@ task.spawn(function()
                     WalkToGrid(currentX, currentY)
                     task.wait(getgenv().MoveDelay) 
                     
-                    -- 2. HANCURKAN BLOCK (Terbang di atas block tanpa merosot)
-                    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-                    local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-                    local startZ = Hitbox and Hitbox.Position.Z or 0
-                    local exactPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
-                    
+                    -- 2. HANCURKAN BLOCK 
+                    -- (Karena CFrame tidak lagi dipaksa spam di dalam loop ini, karakter Anda TIDAK AKAN GETAR lagi!)
                     local tries = 0
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
-                        if not NeedsBreaking(currentX, blockTargetY) then break end
                         
-                        -- MEMAKSA KARAKTER DIAM (PENGUNCIAN EKSTRA)
-                        if Hitbox then Hitbox.CFrame = CFrame.new(exactPos); Hitbox.Velocity = Vector3.zero end
-                        if HRP then HRP.CFrame = CFrame.new(exactPos); HRP.Velocity = Vector3.zero end
-                        if PlayerMovement then pcall(function() PlayerMovement.Position = exactPos end) end
+                        -- Pengecekan radar, berhenti mukul jika block sudah lenyap
+                        if not NeedsBreaking(currentX, blockTargetY) then break end
 
                         RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                         task.wait(getgenv().BreakDelay)
@@ -261,6 +255,8 @@ task.spawn(function()
             
             isRunning = false
             if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
+            
+            -- Matikan terbang saat selesai
             ToggleCXFly(false)
         end
     end
