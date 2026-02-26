@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (PERFECT SYNC & 100% ANTI-GRAVITY) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (ABSOLUTE LOCK & SMART BYPASS) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v23 - Exact CX.Farm Clone" 
+getgenv().ScriptVersion = "AutoClear v24 - Absolute Lock" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -15,7 +15,7 @@ getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.05  
-getgenv().StepDelay = 0.1    -- Jeda jalan 1 block
+getgenv().StepDelay = 0.1    -- Jeda jalan
 getgenv().MoveDelay = 0.15    
 getgenv().MaxHitFailsafe = 20 
 
@@ -58,24 +58,20 @@ CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 -- FUNGSI TERBANG MEMATUNG (SYNC KEDUA TUBUH)
 -- ========================================== --
 local function ToggleFly(state)
-    local HitboxFolder = workspace:FindFirstChild("Hitbox")
-    local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
+    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
     local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
 
-    -- Kunci anti gravitasi di KEDUA BAGIAN agar 100% stabil tidak jatuh
-    local parts = {MyHitbox, HRP}
-    
+    -- Kunci anti gravitasi di KEDUA BAGIAN agar 100% melayang stabil
+    local parts = {Hitbox, HRP}
     for _, part in ipairs(parts) do
         if part then
             if state then
-                part.CanCollide = false -- Matikan tabrakan agar mulus tembus pintu
                 local bv = part:FindFirstChild("AC_FlyBV") or Instance.new("BodyVelocity")
                 bv.Name = "AC_FlyBV"
-                bv.MaxForce = Vector3.new(1e8, 1e8, 1e8) -- Kunci mati di segala arah
-                bv.Velocity = Vector3.zero
+                bv.MaxForce = Vector3.new(1e8, 1e8, 1e8) 
+                bv.Velocity = Vector3.zero -- Kecepatan nol = mematung di udara
                 bv.Parent = part
             else
-                part.CanCollide = true
                 if part:FindFirstChild("AC_FlyBV") then part.AC_FlyBV:Destroy() end
             end
         end
@@ -83,46 +79,9 @@ local function ToggleFly(state)
 end
 
 -- ========================================== --
--- FUNGSI JALAN ANTI-RUBBERBAND (SYNC KEDUA TUBUH)
+-- FUNGSI SCAN PINTAR (DETEKSI PINTU & BEDROCK)
 -- ========================================== --
-local function WalkToGrid(tX, tY)
-    local HitboxFolder = workspace:FindFirstChild("Hitbox")
-    local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
-    local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-    if not MyHitbox then return end
-
-    local startZ = MyHitbox.Position.Z
-    local currentX = math.floor(MyHitbox.Position.X / getgenv().GridSize + 0.5)
-    local currentY = math.floor(MyHitbox.Position.Y / getgenv().GridSize + 0.5)
-
-    while (currentX ~= tX or currentY ~= tY) do
-        if not getgenv().AutoClearEnabled then break end
-        
-        if currentX ~= tX then 
-            currentX = currentX + (tX > currentX and 1 or -1)
-        elseif currentY ~= tY then 
-            currentY = currentY + (tY > currentY and 1 or -1) 
-        end
-        
-        local newPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
-        
-        -- RAHASIA ANTI-GLITCH: Pindahkan Hitbox & Tubuh bersamaan
-        -- Server tidak akan mengira Anda nge-cheat nabrak pintu!
-        MyHitbox.CFrame = CFrame.new(newPos)
-        if HRP then HRP.CFrame = CFrame.new(newPos) end
-        if PlayerMovement then pcall(function() PlayerMovement.Position = newPos end) end
-        
-        task.wait(getgenv().StepDelay)
-    end
-end
-
--- ========================================== --
--- FUNGSI SCAN PINTAR
--- ========================================== --
-local function NeedsBreaking(gridX, gridY)
-    -- Lewati blacklist
-    if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return false end
-
+local function IsObstacle(gridX, gridY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
     local startZ = MyHitbox and MyHitbox.Position.Z or 0
@@ -139,23 +98,89 @@ local function NeedsBreaking(gridX, gridY)
 
     local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(2, 2, 50), params)
     
-    local isProtectedDoor = false
-    local hasBreakableBlock = false
-    
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then
             local pName = string.lower(part.Name)
-            -- JANGAN DIHANCURKAN
+            -- JANGAN DITABRAK ATAU DIHANCURKAN
             if string.find(pName, "door") or string.find(pName, "portal") or string.find(pName, "entrance") or string.find(pName, "spawn") or string.find(pName, "bedrock") or string.find(pName, "border") then
-                isProtectedDoor = true
-            else
-                hasBreakableBlock = true
+                return true
             end
         end
     end
+    return false
+end
+
+local function NeedsBreaking(gridX, gridY)
+    if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return false end
+    if IsObstacle(gridX, gridY) then return false end
+
+    local HitboxFolder = workspace:FindFirstChild("Hitbox")
+    local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
+    local startZ = MyHitbox and MyHitbox.Position.Z or 0
     
-    if isProtectedDoor then return false end
-    return hasBreakableBlock
+    local checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, startZ)
+    local filterObjects = {LP.Character, HitboxFolder, workspace.CurrentCamera}
+    if workspace:FindFirstChild("DroppedItems") then table.insert(filterObjects, workspace.DroppedItems) end
+    if workspace:FindFirstChild("Items") then table.insert(filterObjects, workspace.Items) end
+    
+    local params = OverlapParams.new()
+    params.FilterDescendantsInstances = filterObjects
+    params.FilterType = Enum.RaycastFilterType.Exclude
+
+    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(2, 2, 50), params)
+    
+    for _, part in ipairs(parts) do
+        if part:IsA("BasePart") then
+            return true -- Ada sesuatu yang bisa dihancurkan
+        end
+    end
+    return false
+end
+
+-- ========================================== --
+-- FUNGSI JALAN ANTI-GLITCH (TERBANG LEWATI OBSTACLE)
+-- ========================================== --
+local function WalkToGrid(tX, tY)
+    local HitboxFolder = workspace:FindFirstChild("Hitbox")
+    local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
+    local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    if not MyHitbox then return end
+
+    local startZ = MyHitbox.Position.Z
+    local currentX = math.floor(MyHitbox.Position.X / getgenv().GridSize + 0.5)
+    local currentY = math.floor(MyHitbox.Position.Y / getgenv().GridSize + 0.5)
+
+    while (currentX ~= tX or currentY ~= tY) do
+        if not getgenv().AutoClearEnabled then break end
+        
+        local nextX = currentX
+        local nextY = currentY
+
+        -- Rute Jalan: Dahulukan pindah X, lalu pindah Y
+        if currentX ~= tX then 
+            nextX = currentX + (tX > currentX and 1 or -1)
+            -- TRIK JENIUS: Jika block di depan adalah Pintu/Bedrock, bot akan NAIK KE ATAS (Y+1)
+            -- Bot akan melayang melewati atas rintangan tersebut!
+            if IsObstacle(nextX, currentY) then
+                nextX = currentX
+                nextY = currentY + 1
+            end
+        elseif currentY ~= tY then 
+            nextY = currentY + (tY > currentY and 1 or -1) 
+        end
+        
+        currentX = nextX
+        currentY = nextY
+        
+        local newWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
+        
+        -- Memindahkan Hitbox & Tubuh bersamaan
+        MyHitbox.CFrame = CFrame.new(newWorldPos)
+        if HRP then HRP.CFrame = CFrame.new(newWorldPos) end
+        if PlayerMovement then pcall(function() PlayerMovement.Position = newWorldPos end) end
+        
+        task.wait(getgenv().StepDelay)
+    end
 end
 
 -- ========================================== --
@@ -168,11 +193,15 @@ task.spawn(function()
         if getgenv().AutoClearEnabled and not isRunning then
             isRunning = true
             local arahKanan = true 
+            
+            local HitboxFolder = workspace:FindFirstChild("Hitbox")
+            local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
+            local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
 
-            -- MENGAKTIFKAN TERBANG (Karakter sekarang hantu melayang tanpa batas)
+            -- AKTIFKAN MELAYANG PERMANEN
             ToggleFly(true)
 
-            -- [[ PRE-SCAN (SMART RESUME) ]] --
+            -- [[ PRE-SCAN ]] --
             local highestTargetY = getgenv().AC_StartY
             for scanY = getgenv().AC_StartY, getgenv().AC_EndY, -1 do
                 local foundBlockInRow = false
@@ -198,28 +227,36 @@ task.spawn(function()
                 for currentX = startX, endX, stepX do
                     if not getgenv().AutoClearEnabled then break end
                     
-                    -- SKIP KOSONG & PINTU (Radar pintar)
                     if not NeedsBreaking(currentX, blockTargetY) then
                         continue 
                     end
                     
-                    -- 1. BERJALAN JADI HANTU (Karena CanCollide mati, karakter tembus pintu dgn aman)
+                    -- 1. BERJALAN AMAN (Dengan radar pintu/bedrock aktif)
                     WalkToGrid(currentX, currentY)
                     task.wait(getgenv().MoveDelay) 
                     
-                    -- 2. HANCURKAN BLOCK (BodyVelocity = 0 menjamin 100% diam dan tak getar)
+                    -- 2. HANCURKAN BLOCK (ABSOLUTE LOCK)
                     local tries = 0
+                    local startZ = MyHitbox and MyHitbox.Position.Z or 0
+                    local exactPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
+
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
                         
+                        -- Cek apakah block sudah hancur total
                         if not NeedsBreaking(currentX, blockTargetY) then break end
+
+                        -- MEMAKSA KARAKTER TERKUNCI DI UDARA TEPAT DI ATAS BLOCK (ANTI-MEROSOT)
+                        if MyHitbox then MyHitbox.CFrame = CFrame.new(exactPos) end
+                        if HRP then HRP.CFrame = CFrame.new(exactPos) end
+                        if PlayerMovement then pcall(function() PlayerMovement.Position = exactPos end) end
 
                         RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                         task.wait(getgenv().BreakDelay)
                         tries = tries + 1
                     end
                     
-                    -- Masukkan Blacklist jika nyangkut
+                    -- 3. Blacklist jika blocknya nyangkut / gagal dihancurkan setelah 20x hit
                     if tries >= getgenv().MaxHitFailsafe then
                         getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                     end
@@ -231,7 +268,7 @@ task.spawn(function()
             isRunning = false
             if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
             
-            -- MATIKAN TERBANG saat selesai / tombol dimatikan
+            -- Matikan terbang saat selesai
             ToggleFly(false)
         end
     end
