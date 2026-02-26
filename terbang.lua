@@ -1,212 +1,90 @@
--- [[ ZONHUB | Movement & Auto Collect Module ]] --
-local TargetPage = ...
-if not TargetPage then
-    warn("ZONHUB: Module harus di-load dari Index")
-    return
-end
+-- [[ ZONHUB - FLY MODULE (REAL-TIME BUILD) ]] --
+local TargetPage = ... 
+if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
--- =====================
--- UI SAFETY (WAJIB)
--- =====================
-if TargetPage:IsA("ScrollingFrame") then
-    TargetPage.CanvasSize = UDim2.new(0,0,0,0)
-end
+getgenv().ScriptVersion = "FlyModule v1.0 - Smooth Build" 
 
-local layout = TargetPage:FindFirstChildOfClass("UIListLayout")
-if not layout then
-    layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0,6)
-    layout.Parent = TargetPage
-
-    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        if TargetPage:IsA("ScrollingFrame") then
-            TargetPage.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y + 10)
-        end
-    end)
-end
-
--- =====================
--- GLOBAL STATE
--- =====================
+-- ========================================== --
+-- VARIABEL GLOBAL 
+-- ========================================== --
 getgenv().FlyEnabled = false
-getgenv().FlySpeed = 40
+getgenv().FlySpeed = 50
+-- ========================================== --
 
-getgenv().SpeedEnabled = false
-getgenv().WalkSpeedValue = 30
-
-getgenv().AutoCollect = false
-getgenv().CollectRadius = 20
-
--- =====================
--- SERVICES
--- =====================
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local LP = Players.LocalPlayer
+local RunService = game:GetService("RunService")
 
-local function GetChar()
-    local c = LP.Character or LP.CharacterAdded:Wait()
-    return c, c:WaitForChild("Humanoid"), c:WaitForChild("HumanoidRootPart")
-end
+-- ========================================== --
+-- FUNGSI UI UTILITY
+-- ========================================== --
+local Theme = { Item = Color3.fromRGB(45, 45, 45), Text = Color3.fromRGB(255, 255, 255), Purple = Color3.fromRGB(140, 80, 255) }
 
-local Char, Humanoid, HRP = GetChar()
-LP.CharacterAdded:Connect(function()
-    Char, Humanoid, HRP = GetChar()
-end)
+local function CreateToggle(Parent, Text, Var) 
+    local Btn = Instance.new("TextButton", Parent); Btn.BackgroundColor3 = Theme.Item; Btn.Size = UDim2.new(1, -10, 0, 35); Btn.Text = ""; Btn.AutoButtonColor = false; 
+    local C = Instance.new("UICorner", Btn); C.CornerRadius = UDim.new(0, 6); 
+    local T = Instance.new("TextLabel", Btn); T.Text = Text; T.TextColor3 = Theme.Text; T.Font = Enum.Font.GothamSemibold; T.TextSize = 12; T.Size = UDim2.new(1, -40, 1, 0); T.Position = UDim2.new(0, 10, 0, 0); T.BackgroundTransparency = 1; T.TextXAlignment = Enum.TextXAlignment.Left; 
+    local IndBg = Instance.new("Frame", Btn); IndBg.Size = UDim2.new(0, 36, 0, 18); IndBg.Position = UDim2.new(1, -45, 0.5, -9); IndBg.BackgroundColor3 = Color3.fromRGB(30,30,30); 
+    local IC = Instance.new("UICorner", IndBg); IC.CornerRadius = UDim.new(1,0); 
+    local Dot = Instance.new("Frame", IndBg); Dot.Size = UDim2.new(0, 14, 0, 14); Dot.Position = UDim2.new(0, 2, 0.5, -7); Dot.BackgroundColor3 = Color3.fromRGB(100,100,100); 
+    local DC = Instance.new("UICorner", Dot); DC.CornerRadius = UDim.new(1,0); 
 
--- =====================
--- THEME (HIJAU HITAM)
--- =====================
-local Theme = {
-    Item = Color3.fromRGB(30,40,35),
-    Text = Color3.fromRGB(220,255,230),
-    Accent = Color3.fromRGB(60,200,120),
-    Off = Color3.fromRGB(120,120,120)
-}
-
--- =====================
--- UI ELEMENTS
--- =====================
-local function CreateToggle(Parent, Text, Var)
-    local Btn = Instance.new("TextButton")
-    Btn.Parent = Parent
-    Btn.Size = UDim2.new(1,-10,0,36)
-    Btn.BackgroundColor3 = Theme.Item
-    Btn.Text = ""
-    Btn.AutoButtonColor = false
-    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0,6)
-
-    local Label = Instance.new("TextLabel", Btn)
-    Label.BackgroundTransparency = 1
-    Label.Size = UDim2.new(1,-70,1,0)
-    Label.Position = UDim2.new(0,10,0,0)
-    Label.Font = Enum.Font.GothamSemibold
-    Label.TextSize = 12
-    Label.TextXAlignment = Enum.TextXAlignment.Left
-    Label.TextColor3 = Theme.Text
-
-    local Status = Instance.new("TextLabel", Btn)
-    Status.Size = UDim2.new(0,50,1,0)
-    Status.Position = UDim2.new(1,-55,0,0)
-    Status.BackgroundTransparency = 1
-    Status.Font = Enum.Font.GothamBold
-    Status.TextSize = 12
-    Status.TextXAlignment = Enum.TextXAlignment.Right
-
-    local function Refresh()
-        local on = getgenv()[Var]
-        Label.Text = Text
-        Status.Text = on and "ON" or "OFF"
-        Status.TextColor3 = on and Theme.Accent or Theme.Off
-    end
-
-    Btn.MouseButton1Click:Connect(function()
+    Btn.MouseButton1Click:Connect(function() 
         getgenv()[Var] = not getgenv()[Var]
-        Refresh()
-    end)
-
-    Refresh()
+        if getgenv()[Var] then 
+            Dot:TweenPosition(UDim2.new(1, -16, 0.5, -7), "Out", "Quad", 0.2, true)
+            Dot.BackgroundColor3 = Color3.new(1,1,1); IndBg.BackgroundColor3 = Theme.Purple 
+        else 
+            Dot:TweenPosition(UDim2.new(0, 2, 0.5, -7), "Out", "Quad", 0.2, true)
+            Dot.BackgroundColor3 = Color3.fromRGB(100,100,100); IndBg.BackgroundColor3 = Color3.fromRGB(30,30,30) 
+        end 
+    end) 
 end
 
 local function CreateSlider(Parent, Text, Min, Max, Default, Var)
+    local Frame = Instance.new("Frame", Parent); Frame.BackgroundColor3 = Theme.Item; Frame.Size = UDim2.new(1, -10, 0, 45); 
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 6)
+    local Label = Instance.new("TextLabel", Frame); Label.Text = Text .. ": " .. Default; Label.Size = UDim2.new(1, -20, 0, 20); Label.Position = UDim2.new(0, 10, 0, 5); Label.BackgroundTransparency = 1; Label.TextColor3 = Theme.Text; Label.Font = Enum.Font.GothamSemibold; Label.TextSize = 11; Label.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local SliderBG = Instance.new("Frame", Frame); SliderBG.Size = UDim2.new(1, -20, 0, 4); SliderBG.Position = UDim2.new(0, 10, 0, 32); SliderBG.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    local Fill = Instance.new("Frame", SliderBG); Fill.Size = UDim2.new((Default-Min)/(Max-Min), 0, 1, 0); Fill.BackgroundColor3 = Theme.Purple
+    
+    -- Slider Logic bisa ditambahkan sesuai kebutuhan UI Framework kamu
     getgenv()[Var] = Default
-
-    local Frame = Instance.new("Frame", Parent)
-    Frame.Size = UDim2.new(1,-10,0,45)
-    Frame.BackgroundColor3 = Theme.Item
-    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0,6)
-
-    local Label = Instance.new("TextLabel", Frame)
-    Label.BackgroundTransparency = 1
-    Label.Position = UDim2.new(0,10,0,2)
-    Label.Size = UDim2.new(1,-20,0,18)
-    Label.Font = Enum.Font.GothamSemibold
-    Label.TextSize = 12
-    Label.TextXAlignment = Enum.TextXAlignment.Left
-    Label.TextColor3 = Theme.Text
-
-    local Bar = Instance.new("TextButton", Frame)
-    Bar.Text = ""
-    Bar.AutoButtonColor = false
-    Bar.Position = UDim2.new(0,10,0,28)
-    Bar.Size = UDim2.new(1,-20,0,6)
-    Bar.BackgroundColor3 = Color3.fromRGB(20,25,23)
-    Instance.new("UICorner", Bar).CornerRadius = UDim.new(1,0)
-
-    local Fill = Instance.new("Frame", Bar)
-    Fill.BackgroundColor3 = Theme.Accent
-    Instance.new("UICorner", Fill).CornerRadius = UDim.new(1,0)
-
-    local function SetValue(x)
-        local alpha = math.clamp(x,0,1)
-        local value = math.floor(Min + (Max-Min)*alpha)
-        Fill.Size = UDim2.new(alpha,0,1,0)
-        Label.Text = Text.." : "..value
-        getgenv()[Var] = value
-    end
-
-    SetValue((Default-Min)/(Max-Min))
-
-    Bar.InputBegan:Connect(function(i)
-        if i.UserInputType ~= Enum.UserInputType.Touch
-        and i.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
-
-        SetValue((i.Position.X-Bar.AbsolutePosition.X)/Bar.AbsoluteSize.X)
-    end)
 end
 
--- =====================
--- UI BUILD
--- =====================
-CreateToggle(TargetPage,"Fly","FlyEnabled")
-CreateSlider(TargetPage,"Fly Speed",10,100,40,"FlySpeed")
+-- ========================================== --
+-- MEMBANGUN MENU UI 
+-- ========================================== --
+CreateToggle(TargetPage, "Enable Fly", "FlyEnabled")
+CreateSlider(TargetPage, "Fly Speed", 10, 200, 50, "FlySpeed")
 
-CreateToggle(TargetPage,"Speed Run","SpeedEnabled")
-CreateSlider(TargetPage,"Walk Speed",16,100,30,"WalkSpeedValue")
+-- ========================================== --
+-- LOGIKA FLY (SMOOTH & STABLE)
+-- ========================================== --
+local BodyVel = Instance.new("BodyVelocity")
+BodyVel.MaxForce = Vector3.new(0, 0, 0)
+BodyVel.Velocity = Vector3.new(0, 0, 0)
 
-CreateToggle(TargetPage,"Auto Collect","AutoCollect")
-CreateSlider(TargetPage,"Collect Radius",1,100,20,"CollectRadius")
-
--- =====================
--- LOGIC
--- =====================
-local BV, BG
-
-RunService.RenderStepped:Connect(function()
-    if not HRP or not Humanoid then return end
-
-    Humanoid.WalkSpeed =
-        getgenv().SpeedEnabled and getgenv().WalkSpeedValue or 16
-
-    if getgenv().FlyEnabled then
-        if not BV then
-            BV = Instance.new("BodyVelocity",HRP)
-            BG = Instance.new("BodyGyro",HRP)
-            BV.MaxForce = Vector3.new(1e8,1e8,1e8)
-            BG.MaxTorque = Vector3.new(1e8,1e8,1e8)
+RunService.RenderSteps:Connect(function()
+    local Char = LP.Character
+    local Root = Char and Char:FindFirstChild("HumanoidRootPart")
+    local Hum = Char and Char:FindFirstChild("Humanoid")
+    
+    if getgenv().FlyEnabled and Root and Hum then
+        BodyVel.Parent = Root
+        BodyVel.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+        
+        local Dir = Hum.MoveDirection
+        -- Logika terbang ke arah kamera atau arah jalan
+        BodyVel.Velocity = Dir * getgenv().FlySpeed
+        
+        -- Mencegah karakter jatuh
+        if Dir.Magnitude == 0 then
+            BodyVel.Velocity = Vector3.new(0, 0.1, 0)
         end
-        BG.CFrame = workspace.CurrentCamera.CFrame
-        BV.Velocity = Humanoid.MoveDirection * getgenv().FlySpeed
     else
-        if BV then BV:Destroy() BV=nil end
-        if BG then BG:Destroy() BG=nil end
-    end
-end)
-
-task.spawn(function()
-    while task.wait(0.4) do
-        if not getgenv().AutoCollect or not HRP then continue end
-
-        for _,v in ipairs(workspace:GetDescendants()) do
-            if v:IsA("ProximityPrompt") and v.Enabled then
-                local p = v.Parent
-                if p:IsA("BasePart")
-                and (p.Position-HRP.Position).Magnitude <= getgenv().CollectRadius then
-                    pcall(function()
-                        fireproximityprompt(v,0)
-                    end)
-                end
-            end
-        end
+        BodyVel.Parent = nil
+        BodyVel.MaxForce = Vector3.new(0, 0, 0)
     end
 end)
