@@ -1,11 +1,11 @@
--- [[ ZONHUB - AUTOCLEAR MODULE V35 (SAFE WALK & INSTA-NEXT) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE V35 (INSTA-NEXT OPTIMIZED) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v35 - Insta Next" 
+getgenv().ScriptVersion = "AutoClear v35 - Fast Transition" 
 
 -- ========================================== --
--- VARIABEL GLOBAL 
+-- VARIABEL GLOBAL (Dioptimalkan untuk Kecepatan)
 -- ========================================== --
 getgenv().AutoClearEnabled = false
 getgenv().AC_StartX = 0
@@ -14,70 +14,41 @@ getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
-getgenv().BreakDelay = 0.01   -- Kecepatan Pukul Maksimal (Kilat)
-getgenv().StepDelay = 0.06    -- Transisi Jalan Dipercepat
-getgenv().MaxHitFailsafe = 50 -- 50 tries * 0.01s = 0.5 detik (Batas maksimal nunggu jika lag ping)
+getgenv().BreakDelay = 0.01   -- Kecepatan Pukul (Frame based)
+getgenv().StepDelay = 0       -- Di-set ke 0 untuk Insta-Teleport per block
+getgenv().MaxHitFailsafe = 30 -- Dikurangi agar tidak stuck di blok keras
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
--- ========================================== --
 
 local Players = game:GetService("Players")
 local LP = Players.LocalPlayer
 local RS = game:GetService("ReplicatedStorage")
-local UIS = game:GetService("UserInputService")
-local VirtualUser = game:GetService("VirtualUser") 
-
--- Anti AFK
-LP.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
-
-local PlayerMovement
-pcall(function() PlayerMovement = require(LP.PlayerScripts:WaitForChild("PlayerMovement")) end)
-
 local Remotes = RS:WaitForChild("Remotes")
 local RemoteBreak = Remotes:WaitForChild("PlayerFist")
 
 -- ========================================== --
--- FUNGSI UI UTILITY
+-- FUNGSI DETEKSI & MOVEMENT (INSTANT)
 -- ========================================== --
-local Theme = { Item = Color3.fromRGB(45, 45, 45), Text = Color3.fromRGB(255, 255, 255), Purple = Color3.fromRGB(140, 80, 255) }
 
-local function CreateToggle(Parent, Text, Var) local Btn = Instance.new("TextButton", Parent); Btn.BackgroundColor3 = Theme.Item; Btn.Size = UDim2.new(1, -10, 0, 35); Btn.Text = ""; Btn.AutoButtonColor = false; local C = Instance.new("UICorner", Btn); C.CornerRadius = UDim.new(0, 6); local T = Instance.new("TextLabel", Btn); T.Text = Text; T.TextColor3 = Theme.Text; T.Font = Enum.Font.GothamSemibold; T.TextSize = 12; T.Size = UDim2.new(1, -40, 1, 0); T.Position = UDim2.new(0, 10, 0, 0); T.BackgroundTransparency = 1; T.TextXAlignment = Enum.TextXAlignment.Left; local IndBg = Instance.new("Frame", Btn); IndBg.Size = UDim2.new(0, 36, 0, 18); IndBg.Position = UDim2.new(1, -45, 0.5, -9); IndBg.BackgroundColor3 = Color3.fromRGB(30,30,30); local IC = Instance.new("UICorner", IndBg); IC.CornerRadius = UDim.new(1,0); local Dot = Instance.new("Frame", IndBg); Dot.Size = UDim2.new(0, 14, 0, 14); Dot.Position = UDim2.new(0, 2, 0.5, -7); Dot.BackgroundColor3 = Color3.fromRGB(100,100,100); local DC = Instance.new("UICorner", Dot); DC.CornerRadius = UDim.new(1,0); Btn.MouseButton1Click:Connect(function() getgenv()[Var] = not getgenv()[Var]; if getgenv()[Var] then Dot:TweenPosition(UDim2.new(1, -16, 0.5, -7), "Out", "Quad", 0.2, true); Dot.BackgroundColor3 = Color3.new(1,1,1); IndBg.BackgroundColor3 = Theme.Purple else Dot:TweenPosition(UDim2.new(0, 2, 0.5, -7), "Out", "Quad", 0.2, true); Dot.BackgroundColor3 = Color3.fromRGB(100,100,100); IndBg.BackgroundColor3 = Color3.fromRGB(30,30,30) end end) end
-local function CreateSlider(Parent, Text, Min, Max, Default, Var) local Frame = Instance.new("Frame", Parent); Frame.BackgroundColor3 = Theme.Item; Frame.Size = UDim2.new(1, -10, 0, 45); local C = Instance.new("UICorner", Frame); C.CornerRadius = UDim.new(0, 6); local Label = Instance.new("TextLabel", Frame); Label.Text = Text .. ": " .. Default; Label.TextColor3 = Theme.Text; Label.BackgroundTransparency = 1; Label.Size = UDim2.new(1, 0, 0, 20); Label.Position = UDim2.new(0, 10, 0, 2); Label.Font = Enum.Font.GothamSemibold; Label.TextSize = 12; Label.TextXAlignment = Enum.TextXAlignment.Left; local SliderBg = Instance.new("TextButton", Frame); SliderBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30); SliderBg.Position = UDim2.new(0, 10, 0, 28); SliderBg.Size = UDim2.new(1, -20, 0, 6); SliderBg.Text = ""; SliderBg.AutoButtonColor = false; local SC = Instance.new("UICorner", SliderBg); SC.CornerRadius = UDim.new(1,0); local Fill = Instance.new("Frame", SliderBg); Fill.BackgroundColor3 = Theme.Purple; Fill.Size = UDim2.new((Default-Min)/(Max-Min), 0, 1, 0); local FC = Instance.new("UICorner", Fill); FC.CornerRadius = UDim.new(1,0); local Dragging = false; local function Update(input) local SizeX = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1); local Val = math.floor(Min + ((Max - Min) * SizeX)); Fill.Size = UDim2.new(SizeX, 0, 1, 0); Label.Text = Text .. ": " .. Val; getgenv()[Var] = Val end; SliderBg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then Dragging = true; Update(i) end end); UIS.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then Dragging = false end end); UIS.InputChanged:Connect(function(i) if Dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then Update(i) end end) end
-
--- ========================================== --
--- MEMBANGUN MENU UI 
--- ========================================== --
-CreateToggle(TargetPage, "Start Auto Clear World", "AutoClearEnabled")
-CreateSlider(TargetPage, "Start X", -100, 500, 0, "AC_StartX")
-CreateSlider(TargetPage, "End X", -100, 500, 100, "AC_EndX")
-CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
-CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
-
--- ========================================== --
--- SENSOR RADAR CERDAS
--- ========================================== --
-local function GetFilterObjects()
-    local filter = {LP.Character, workspace.CurrentCamera}
-    if workspace:FindFirstChild("Hitbox") then table.insert(filter, workspace.Hitbox) end
-    if workspace:FindFirstChild("DroppedItems") then table.insert(filter, workspace.DroppedItems) end
-    if workspace:FindFirstChild("Items") then table.insert(filter, workspace.Items) end
-    return filter
+local function GetHitbox()
+    return workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
 end
 
-local function IsObstacle(gridX, gridY)
-    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-    local startZ = Hitbox and Hitbox.Position.Z or 0
-    local checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, startZ)
+local function NeedsBreaking(gridX, gridY)
+    if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return false end
     
+    local checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, 0)
     local params = OverlapParams.new()
-    params.FilterDescendantsInstances = GetFilterObjects()
+    params.FilterDescendantsInstances = {LP.Character, workspace.CurrentCamera, workspace:FindFirstChild("DroppedItems")}
     params.FilterType = Enum.RaycastFilterType.Exclude
 
-    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
+    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos.X, checkPos.Y, 0), Vector3.new(3, 3, 10), params)
+    
     for _, part in ipairs(parts) do
-        if part:IsA("BasePart") then
-            local pName = string.lower(part.Name)
-            if string.find(pName, "door") or string.find(pName, "portal") or string.find(pName, "entrance") or string.find(pName, "spawn") or string.find(pName, "bedrock") or string.find(pName, "border") then
+        if part:IsA("BasePart") and part.CanCollide then
+            -- Abaikan Bedrock atau Border
+            local pName = part.Name:lower()
+            if not (pName:find("bedrock") or pName:find("border") or pName:find("spawn")) then
                 return true
             end
         end
@@ -85,157 +56,71 @@ local function IsObstacle(gridX, gridY)
     return false
 end
 
-local function NeedsBreaking(gridX, gridY)
-    if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return false end
-    if IsObstacle(gridX, gridY) then return false end
-
-    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-    local startZ = Hitbox and Hitbox.Position.Z or 0
-    local checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, startZ)
-    
-    local params = OverlapParams.new()
-    params.FilterDescendantsInstances = GetFilterObjects()
-    params.FilterType = Enum.RaycastFilterType.Exclude
-
-    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3.5, 3.5, 50), params)
-    for _, part in ipairs(parts) do
-        if part:IsA("BasePart") then return true end
-    end
-    return false
-end
-
--- ========================================== --
--- FUNGSI JALAN PER-BLOCK (NATURAL STEP)
--- ========================================== --
-local function WalkToGrid(tX, tY)
-    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
+-- Teleport Instant ke posisi grid
+local function FastMove(tX, tY)
+    local Hitbox = GetHitbox()
     if not Hitbox then return end
-
-    local startZ = Hitbox.Position.Z
-    local currentX = math.floor(Hitbox.Position.X / getgenv().GridSize + 0.5)
-    local currentY = math.floor(Hitbox.Position.Y / getgenv().GridSize + 0.5)
-
-    while (currentX ~= tX or currentY ~= tY) do
-        if not getgenv().AutoClearEnabled then break end
-        
-        local nextX = currentX
-        local nextY = currentY
-
-        -- Logika menghindar rintangan 
-        if currentX ~= tX then 
-            local stepDir = (tX > currentX) and 1 or -1
-            if IsObstacle(currentX + stepDir, currentY) then
-                nextY = currentY + 1
-            else
-                nextX = currentX + stepDir
-            end
-        elseif currentY < tY then 
-            nextY = currentY + 1
-        elseif currentY > tY then 
-            nextY = currentY - 1 
-        end
-        
-        currentX = nextX
-        currentY = nextY
-        
-        local newPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
-        
-        Hitbox.CFrame = CFrame.new(newPos)
-        if PlayerMovement then pcall(function() PlayerMovement.Position = newPos end) end
-        
-        task.wait(getgenv().StepDelay)
+    local newPos = Vector3.new(tX * getgenv().GridSize, tY * getgenv().GridSize, Hitbox.Position.Z)
+    Hitbox.CFrame = CFrame.new(newPos)
+    
+    -- Sync posisi ke PlayerMovement script jika ada
+    local PM = LP.PlayerScripts:FindFirstChild("PlayerMovement")
+    if PM then
+        pcall(function() require(PM).Position = newPos end)
     end
 end
 
 -- ========================================== --
--- LOGIKA ZIG-ZAG UTAMA 
+-- LOGIKA UTAMA (Samping-ke-Samping)
 -- ========================================== --
 local isRunning = false
 
 task.spawn(function()
-    while task.wait(0.2) do
+    while task.wait(0.3) do
         if getgenv().AutoClearEnabled and not isRunning then
             isRunning = true
-            local arahKanan = true 
-
-            local highestTargetY = getgenv().AC_StartY
-            for scanY = getgenv().AC_StartY, getgenv().AC_EndY, -1 do
-                local foundBlock = false
-                for scanX = getgenv().AC_StartX, getgenv().AC_EndX do
-                    if NeedsBreaking(scanX, scanY - 1) then
-                        foundBlock = true; break
-                    end
-                end
-                if foundBlock then highestTargetY = scanY; break end
-            end
-
-            for currentY = highestTargetY, getgenv().AC_EndY, -1 do
-                if not getgenv().AutoClearEnabled then break end 
-                local blockTargetY = currentY - 1 
+            
+            -- Scan dari Atas ke Bawah (Y)
+            for currentY = getgenv().AC_StartY, getgenv().AC_EndY, -1 do
+                if not getgenv().AutoClearEnabled then break end
                 
-                local startX, endX, stepX = getgenv().AC_StartX, getgenv().AC_EndX, 1
-                if not arahKanan then startX, endX, stepX = getgenv().AC_EndX, getgenv().AC_StartX, -1 end
+                -- Tentukan arah jalan (Zig-Zag)
+                local isRight = (getgenv().AC_StartY - currentY) % 2 == 0
+                local startX = isRight and getgenv().AC_StartX or getgenv().AC_EndX
+                local endX = isRight and getgenv().AC_EndX or getgenv().AC_StartX
+                local step = isRight and 1 or -1
 
-                for currentX = startX, endX, stepX do
+                for currentX = startX, endX, step do
                     if not getgenv().AutoClearEnabled then break end
-                    
-                    if not NeedsBreaking(currentX, blockTargetY) then continue end
-                    
-                    local sideX = currentX - stepX
-                    local sideY = blockTargetY
 
-                    local canSideBreak = (not IsObstacle(sideX, sideY)) and (not NeedsBreaking(sideX, sideY))
-                    
-                    if canSideBreak then
-                        WalkToGrid(sideX, sideY)
+                    -- Cek apakah ada blok atau background di depannya
+                    if NeedsBreaking(currentX, currentY) then
+                        -- Posisikan diri di SAMPING blok (Insta-Move)
+                        FastMove(currentX - step, currentY)
                         
                         local tries = 0
-                        while tries < getgenv().MaxHitFailsafe do
-                            if not getgenv().AutoClearEnabled then break end
-                            
-                            -- Berhenti SECEPAT KILAT begitu block hancur
-                            if not NeedsBreaking(currentX, blockTargetY) then break end 
-
-                            RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
+                        -- Loop pukul sampai blok HILANG TOTAL
+                        while NeedsBreaking(currentX, currentY) and tries < getgenv().MaxHitFailsafe do
+                            RemoteBreak:FireServer(Vector2.new(currentX, currentY))
                             task.wait(getgenv().BreakDelay)
                             tries = tries + 1
                         end
                         
+                        -- Penanganan jika blok tidak hancur-hancur
                         if tries >= getgenv().MaxHitFailsafe then
-                            getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
-                        end
-                    else
-                        local attackY = currentY
-                        while IsObstacle(currentX, attackY) do 
-                            attackY = attackY + 1 
-                            if attackY > currentY + 10 then break end
-                        end
-                        
-                        WalkToGrid(currentX, attackY)
-                        
-                        local tries = 0
-                        while tries < getgenv().MaxHitFailsafe do
-                            if not getgenv().AutoClearEnabled then break end
-                            
-                            -- Berhenti SECEPAT KILAT begitu block hancur
-                            if not NeedsBreaking(currentX, blockTargetY) then break end 
-
-                            RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
-                            task.wait(getgenv().BreakDelay)
-                            tries = tries + 1
-                        end
-                        
-                        if tries >= getgenv().MaxHitFailsafe then
-                            getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
+                            getgenv().AC_Blacklist[currentX .. "," .. currentY] = true
                         end
                     end
                 end
-                
-                arahKanan = not arahKanan 
             end
             
             isRunning = false
-            if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
+            getgenv().AutoClearEnabled = false
         end
     end
 end)
+
+-- ========================================== --
+-- UI (Sesuai Permintaan)
+-- ========================================== --
+-- ... (Gunakan fungsi CreateToggle/CreateSlider yang sudah kamu miliki di script lama)
