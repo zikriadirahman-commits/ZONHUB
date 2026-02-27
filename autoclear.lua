@@ -1,11 +1,11 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (ZERO JITTER & CX FLY LOGIC) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (ZERO JITTER & SMART SIDE-BREAK) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v28 - Final Perfection (Side Break)" 
+getgenv().ScriptVersion = "AutoClear v29 - Anti Glitch Fix" 
 
 -- ========================================== --
--- VARIABEL GLOBAL (Delay dipercepat untuk Insta-Next)
+-- VARIABEL GLOBAL (Kecepatan Instan)
 -- ========================================== --
 getgenv().AutoClearEnabled = false
 getgenv().AC_StartX = 0
@@ -14,10 +14,10 @@ getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
-getgenv().BreakDelay = 0.01   -- Dipercepat (Mukul kilat)
-getgenv().StepDelay = 0       -- Dipercepat (Instan pindah grid)
-getgenv().MoveDelay = 0       -- Dipercepat (Langsung mukul tanpa nunggu)
-getgenv().MaxHitFailsafe = 50 -- Disesuaikan karena BreakDelay sangat kecil
+getgenv().BreakDelay = 0.01   -- Mukul kilat
+getgenv().StepDelay = 0       -- Instan pindah grid
+getgenv().MoveDelay = 0       -- Langsung mukul tanpa nunggu
+getgenv().MaxHitFailsafe = 50 
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 -- ========================================== --
@@ -135,7 +135,7 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- FUNGSI JALAN PINTAR (AUTO-PARKOUR PINTU)
+-- FUNGSI JALAN PINTAR DENGAN ANTI-STUCK
 -- ========================================== --
 local function WalkToGrid(tX, tY)
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
@@ -145,6 +145,8 @@ local function WalkToGrid(tX, tY)
     local startZ = Hitbox.Position.Z
     local currentX = math.floor(Hitbox.Position.X / getgenv().GridSize + 0.5)
     local currentY = math.floor(Hitbox.Position.Y / getgenv().GridSize + 0.5)
+
+    local stuckCounter = 0
 
     while (currentX ~= tX or currentY ~= tY) do
         if not getgenv().AutoClearEnabled then break end
@@ -166,6 +168,14 @@ local function WalkToGrid(tX, tY)
             nextY = currentY - 1 
         end
         
+        -- Deteksi jika mentok supaya tidak loop balik-balik tanpa henti
+        if nextX == currentX and nextY == currentY then
+            stuckCounter = stuckCounter + 1
+            if stuckCounter > 3 then break end
+        else
+            stuckCounter = 0
+        end
+
         currentX = nextX
         currentY = nextY
         
@@ -219,16 +229,25 @@ task.spawn(function()
                     
                     if not NeedsBreaking(currentX, blockTargetY) then continue end
                     
-                    -- 1. BERDIRI DARI SAMPING & DI LEVEL YANG SAMA DGN BLOCK (Perbaikan)
-                    WalkToGrid(currentX - stepX, blockTargetY)
+                    -- [!] LOGIKA SMART STAND (ANTI BALIK-BALIK) [!]
+                    local standX = currentX - stepX
+                    local standY = blockTargetY
+                    
+                    -- Jika posisi di samping adalah tembok/blok utuh, berdiri di ATAS target dulu
+                    if IsObstacle(standX, standY) or NeedsBreaking(standX, standY) then
+                        standX = currentX
+                        standY = currentY 
+                    end
+
+                    WalkToGrid(standX, standY)
                     if getgenv().MoveDelay > 0 then task.wait(getgenv().MoveDelay) end 
                     
-                    -- 2. HANCURKAN BLOCK (Insta-Next)
+                    -- HANCURKAN BLOCK (Insta-Next)
                     local tries = 0
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
                         
-                        -- Pengecekan radar: JIKA BLOCK & BACKGROUND HANCUR -> LANGSUNG BREAK & PINDAH KESEBALAHNYA
+                        -- Cek radar, jika sudah bersih langsung lompat dari loop (Insta-Next)
                         if not NeedsBreaking(currentX, blockTargetY) then break end
 
                         RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
