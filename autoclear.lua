@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE V32 (SIMPLE BLOCK-STEP & C-LOCK) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE V33 (PURE STEP & INSTANT NEXT) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v32 - Simple Step" 
+getgenv().ScriptVersion = "AutoClear v33 - Pure Step" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -14,9 +14,9 @@ getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
-getgenv().BreakDelay = 0.05   -- Kecepatan Pukul
-getgenv().StepDelay = 0.05    -- Kecepatan Jalan Per Block
-getgenv().MaxHitFailsafe = 20 
+getgenv().BreakDelay = 0.01   -- Sangat Cepat
+getgenv().StepDelay = 0.05    -- Kecepatan Jalan Per Kotak
+getgenv().MaxHitFailsafe = 30 
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 -- ========================================== --
@@ -54,7 +54,7 @@ CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- SENSOR & RADAR
+-- SENSOR RADAR CERDAS
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -76,7 +76,6 @@ local function IsObstacle(gridX, gridY)
     local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then
-            if part.CanCollide then return true end
             local pName = string.lower(part.Name)
             if string.find(pName, "door") or string.find(pName, "portal") or string.find(pName, "entrance") or string.find(pName, "spawn") or string.find(pName, "bedrock") or string.find(pName, "border") then
                 return true
@@ -106,11 +105,10 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- FUNGSI JALAN PER-BLOCK (STEP BY STEP)
+-- FUNGSI JALAN PER-BLOCK & AUTO-NAIK PINTU
 -- ========================================== --
-local function StepWalkTo(tX, tY)
+local function WalkToGrid(tX, tY)
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-    local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
     if not Hitbox then return end
 
     local startZ = Hitbox.Position.Z
@@ -123,11 +121,11 @@ local function StepWalkTo(tX, tY)
         local nextX = currentX
         local nextY = currentY
 
-        -- Prioritaskan jalan sumbu Y dulu kalau rintangan ada di X
+        -- Logika menghindar rintangan (Jika terhalang, naik 1 block)
         if currentX ~= tX then 
             local stepDir = (tX > currentX) and 1 or -1
             if IsObstacle(currentX + stepDir, currentY) then
-                nextY = currentY + 1 -- Terhalang? Naik 1 blok
+                nextY = currentY + 1
             else
                 nextX = currentX + stepDir
             end
@@ -142,9 +140,8 @@ local function StepWalkTo(tX, tY)
         
         local newPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
         
-        -- Memindahkan karakter murni dengan CFrame per kotak
-        if Hitbox then Hitbox.CFrame = CFrame.new(newPos); Hitbox.Velocity = Vector3.zero end
-        if HRP then HRP.CFrame = CFrame.new(newPos); HRP.Velocity = Vector3.zero end
+        -- Memindahkan karakter murni
+        Hitbox.CFrame = CFrame.new(newPos)
         if PlayerMovement then pcall(function() PlayerMovement.Position = newPos end) end
         
         task.wait(getgenv().StepDelay)
@@ -152,7 +149,7 @@ local function StepWalkTo(tX, tY)
 end
 
 -- ========================================== --
--- LOGIKA ZIG-ZAG (SAMPING & ATAS)
+-- LOGIKA ZIG-ZAG UTAMA (SIDE-BREAK & INSTANT NEXT)
 -- ========================================== --
 local isRunning = false
 
@@ -162,11 +159,6 @@ task.spawn(function()
             isRunning = true
             local arahKanan = true 
 
-            -- Matikan terbang (Cukup PlatformStand agar tidak ada animasi jalan nyangkut)
-            local Hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
-            if Hum then Hum.PlatformStand = true end
-
-            -- Cari block tertinggi yang perlu dihancurkan
             local highestTargetY = getgenv().AC_StartY
             for scanY = getgenv().AC_StartY, getgenv().AC_EndY, -1 do
                 local foundBlock = false
@@ -178,7 +170,6 @@ task.spawn(function()
                 if foundBlock then highestTargetY = scanY; break end
             end
 
-            -- Mulai pembersihan baris demi baris
             for currentY = highestTargetY, getgenv().AC_EndY, -1 do
                 if not getgenv().AutoClearEnabled then break end 
                 local blockTargetY = currentY - 1 
@@ -194,25 +185,29 @@ task.spawn(function()
                     local sideX = currentX - stepX
                     local sideY = blockTargetY
                     
+                    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
+                    local startZ = Hitbox and Hitbox.Position.Z or 0
+
                     local canSideBreak = (not IsObstacle(sideX, sideY)) and (not NeedsBreaking(sideX, sideY))
                     
-                    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-                    local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-                    
                     if canSideBreak then
-                        -- [ OPSI 1: HANCURKAN DARI SAMPING ]
-                        StepWalkTo(sideX, sideY)
+                        -- =====================================
+                        -- OPSI A: HANCURKAN DARI SAMPING
+                        -- =====================================
+                        WalkToGrid(sideX, sideY)
                         
-                        local lockPos = Hitbox and Hitbox.Position or Vector3.zero
                         local tries = 0
                         while tries < getgenv().MaxHitFailsafe do
                             if not getgenv().AutoClearEnabled then break end
+                            
+                            -- INSTANT NEXT: Berhenti seketika begitu hancur
                             if not NeedsBreaking(currentX, blockTargetY) then break end 
                             
-                            -- C-LOCK: Tahan karakter di tempat (Anti jatuh)
-                            if Hitbox then Hitbox.CFrame = CFrame.new(lockPos); Hitbox.Velocity = Vector3.zero end
-                            if HRP then HRP.CFrame = CFrame.new(lockPos); HRP.Velocity = Vector3.zero end
-                            
+                            -- Mempertahankan posisi saat mukul (agar tidak jatuh/gerak)
+                            local lockPos = Vector3.new(sideX * getgenv().GridSize, sideY * getgenv().GridSize, startZ)
+                            if Hitbox then Hitbox.CFrame = CFrame.new(lockPos) end
+                            if PlayerMovement then pcall(function() PlayerMovement.Position = lockPos end) end
+
                             RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                             task.wait(getgenv().BreakDelay)
                             tries = tries + 1
@@ -222,25 +217,30 @@ task.spawn(function()
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                         end
                     else
-                        -- [ OPSI 2: HANCURKAN DARI ATAS (BYPASS) ]
-                        local attackY = blockTargetY + 1
+                        -- =====================================
+                        -- OPSI B: HANCURKAN DARI ATAS (BYPASS)
+                        -- =====================================
+                        local attackY = currentY
+                        -- Cari udara kosong di atas untuk memukul, hindari numbur pintu
                         while IsObstacle(currentX, attackY) do 
                             attackY = attackY + 1 
-                            if attackY > blockTargetY + 10 then break end
+                            if attackY > currentY + 10 then break end
                         end
                         
-                        StepWalkTo(currentX, attackY)
+                        WalkToGrid(currentX, attackY)
                         
-                        local lockPos = Hitbox and Hitbox.Position or Vector3.zero
                         local tries = 0
                         while tries < getgenv().MaxHitFailsafe do
                             if not getgenv().AutoClearEnabled then break end
+                            
+                            -- INSTANT NEXT: Berhenti seketika begitu hancur
                             if not NeedsBreaking(currentX, blockTargetY) then break end 
                             
-                            -- C-LOCK: Tahan karakter di udara saat memukul (Anti getar)
-                            if Hitbox then Hitbox.CFrame = CFrame.new(lockPos); Hitbox.Velocity = Vector3.zero end
-                            if HRP then HRP.CFrame = CFrame.new(lockPos); HRP.Velocity = Vector3.zero end
-                            
+                            -- Mempertahankan posisi melayang di udara saat memukul
+                            local lockPos = Vector3.new(currentX * getgenv().GridSize, attackY * getgenv().GridSize, startZ)
+                            if Hitbox then Hitbox.CFrame = CFrame.new(lockPos) end
+                            if PlayerMovement then pcall(function() PlayerMovement.Position = lockPos end) end
+
                             RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                             task.wait(getgenv().BreakDelay)
                             tries = tries + 1
@@ -257,8 +257,6 @@ task.spawn(function()
             
             isRunning = false
             if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
-            
-            if Hum then Hum.PlatformStand = false end
         end
     end
 end)
