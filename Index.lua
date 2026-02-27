@@ -1,165 +1,210 @@
--- [[ ZONHUB - INDEX LOADER V.0.60 (MODERNIZED UI) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (V65 ZERO-SPIN EDITION) ]] --
 
-getgenv().HubVersion = "1.0.2 TESTER ONLY" 
+local TargetPage = ... 
+if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-local CoreGui = game:GetService("CoreGui")
-local UIS = game:GetService("UserInputService")
+getgenv().ScriptVersion = "AutoClear v65 - Zero-Spin & Clean Stop" 
+
+-- ========================================== --
+-- VARIABEL GLOBAL
+-- ========================================== --
+getgenv().AutoClearEnabled = false
+getgenv().AC_StartX = 0
+getgenv().AC_EndX = 100
+getgenv().AC_StartY = 37
+getgenv().AC_EndY = 6
+
+getgenv().AC_MaxHits = 40       
+getgenv().AC_HoverHeight = 6    
+getgenv().AC_HitDelay = 30      
+
+getgenv().GridSize = 4.5     
+getgenv().GlideSpeed = 2.5      
+
+getgenv().AC_ResumeX = nil
+getgenv().AC_ResumeY = nil
+getgenv().AC_ArahKanan = nil
+getgenv().AC_FixedZ = nil       
+
+getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
+
+-- ========================================== --
 local Players = game:GetService("Players")
-local TS = game:GetService("TweenService")
 local LP = Players.LocalPlayer
+local RS = game:GetService("ReplicatedStorage")
+local UIS = game:GetService("UserInputService")
+local VirtualUser = game:GetService("VirtualUser") 
 
-pcall(function() if getgenv().ZonIndexUI then getgenv().ZonIndexUI:Destroy() end end)
+LP.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
 
--- [[ SETUP UI UTAMA ]] --
-local ScreenGui = Instance.new("ScreenGui"); ScreenGui.Name = "ZonHubIndex"
-pcall(function() ScreenGui.Parent = CoreGui end); if not ScreenGui.Parent then ScreenGui.Parent = LP.PlayerGui end
-ScreenGui.ResetOnSpawn = false; getgenv().ZonIndexUI = ScreenGui 
+local PlayerMovement
+pcall(function() PlayerMovement = require(LP.PlayerScripts:WaitForChild("PlayerMovement")) end)
 
--- Skema Warna Modern (Deep Dark & Neon Indigo Accent)
-local Theme = { 
-    Bg = Color3.fromRGB(20, 22, 26), 
-    Header = Color3.fromRGB(13, 15, 18), 
-    Item = Color3.fromRGB(32, 35, 42), 
-    Text = Color3.fromRGB(240, 245, 255), 
-    SubText = Color3.fromRGB(160, 165, 175),
-    Purple = Color3.fromRGB(115, 85, 255), 
-    Discord = Color3.fromRGB(88, 101, 242)
-}
+local Remotes = RS:WaitForChild("Remotes")
+local RemoteBreak = Remotes:WaitForChild("PlayerFist")
 
--- Tombol Logo (Minimized)
-local ZONBtn = Instance.new("TextButton", ScreenGui); ZONBtn.BackgroundColor3 = Theme.Bg; ZONBtn.Position = UDim2.new(0.1, 0, 0.1, 0); ZONBtn.Size = UDim2.new(0, 50, 0, 50); ZONBtn.Text = "ZON"; ZONBtn.TextColor3 = Theme.Purple; ZONBtn.Font = Enum.Font.GothamBlack; ZONBtn.TextSize = 18; ZONBtn.Visible = false; ZONBtn.AutoButtonColor = false
-Instance.new("UICorner", ZONBtn).CornerRadius = UDim.new(1, 0)
-local BtnStroke = Instance.new("UIStroke", ZONBtn); BtnStroke.Color = Theme.Purple; BtnStroke.Thickness = 2; BtnStroke.Transparency = 0.2
+-- ========================================== --
+-- FUNGSI UI UTILITY
+-- ========================================== --
+local Theme = { Item = Color3.fromRGB(45, 45, 45), Text = Color3.fromRGB(255, 255, 255), Purple = Color3.fromRGB(140, 80, 255) }
 
--- Frame Utama
-local Main = Instance.new("Frame", ScreenGui); Main.BackgroundColor3 = Theme.Bg; Main.Position = UDim2.new(0.5, -250, 0.5, -160); Main.Size = UDim2.new(0, 550, 0, 340)
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
-local MainStroke = Instance.new("UIStroke", Main); MainStroke.Color = Theme.Purple; MainStroke.Thickness = 1.5; MainStroke.Transparency = 0.4
+local function CreateToggle(Parent, Text, Var) local Btn = Instance.new("TextButton", Parent); Btn.BackgroundColor3 = Theme.Item; Btn.Size = UDim2.new(1, -10, 0, 35); Btn.Text = ""; Btn.AutoButtonColor = false; local C = Instance.new("UICorner", Btn); C.CornerRadius = UDim.new(0, 6); local T = Instance.new("TextLabel", Btn); T.Text = Text; T.TextColor3 = Theme.Text; T.Font = Enum.Font.GothamSemibold; T.TextSize = 12; T.Size = UDim2.new(1, -40, 1, 0); T.Position = UDim2.new(0, 10, 0, 0); T.BackgroundTransparency = 1; T.TextXAlignment = Enum.TextXAlignment.Left; local IndBg = Instance.new("Frame", Btn); IndBg.Size = UDim2.new(0, 36, 0, 18); IndBg.Position = UDim2.new(1, -45, 0.5, -9); IndBg.BackgroundColor3 = Color3.fromRGB(30,30,30); local IC = Instance.new("UICorner", IndBg); IC.CornerRadius = UDim.new(1,0); local Dot = Instance.new("Frame", IndBg); Dot.Size = UDim2.new(0, 14, 0, 14); Dot.Position = UDim2.new(0, 2, 0.5, -7); Dot.BackgroundColor3 = Color3.fromRGB(100,100,100); local DC = Instance.new("UICorner", Dot); DC.CornerRadius = UDim.new(1,0); Btn.MouseButton1Click:Connect(function() getgenv()[Var] = not getgenv()[Var]; if getgenv()[Var] then Dot:TweenPosition(UDim2.new(1, -16, 0.5, -7), "Out", "Quad", 0.2, true); Dot.BackgroundColor3 = Color3.new(1,1,1); IndBg.BackgroundColor3 = Theme.Purple else Dot:TweenPosition(UDim2.new(0, 2, 0.5, -7), "Out", "Quad", 0.2, true); Dot.BackgroundColor3 = Color3.fromRGB(100,100,100); IndBg.BackgroundColor3 = Color3.fromRGB(30,30,30) end end) end
+local function CreateSlider(Parent, Text, Min, Max, Default, Var) local Frame = Instance.new("Frame", Parent); Frame.BackgroundColor3 = Theme.Item; Frame.Size = UDim2.new(1, -10, 0, 45); local C = Instance.new("UICorner", Frame); C.CornerRadius = UDim.new(0, 6); local Label = Instance.new("TextLabel", Frame); Label.Text = Text .. ": " .. Default; Label.TextColor3 = Theme.Text; Label.BackgroundTransparency = 1; Label.Size = UDim2.new(1, 0, 0, 20); Label.Position = UDim2.new(0, 10, 0, 2); Label.Font = Enum.Font.GothamSemibold; Label.TextSize = 12; Label.TextXAlignment = Enum.TextXAlignment.Left; local SliderBg = Instance.new("TextButton", Frame); SliderBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30); SliderBg.Position = UDim2.new(0, 10, 0, 28); SliderBg.Size = UDim2.new(1, -20, 0, 6); SliderBg.Text = ""; SliderBg.AutoButtonColor = false; local SC = Instance.new("UICorner", SliderBg); SC.CornerRadius = UDim.new(1,0); local Fill = Instance.new("Frame", SliderBg); Fill.BackgroundColor3 = Theme.Purple; Fill.Size = UDim2.new((Default-Min)/(Max-Min), 0, 1, 0); local FC = Instance.new("UICorner", Fill); FC.CornerRadius = UDim.new(1,0); local Dragging = false; local function Update(input) local SizeX = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1); local Val = math.floor(Min + ((Max - Min) * SizeX)); Fill.Size = UDim2.new(SizeX, 0, 1, 0); Label.Text = Text .. ": " .. Val; getgenv()[Var] = Val; if string.find(Var, "AC_Start") or string.find(Var, "AC_End") then getgenv().AC_ResumeX = nil; getgenv().AC_ResumeY = nil; getgenv().AC_FixedZ = nil; end end; SliderBg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then Dragging = true; Update(i) end end); UIS.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then Dragging = false end end); UIS.InputChanged:Connect(function(i) if Dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then Update(i) end end) end
 
--- Fungsi Drag (Dipertahankan dari aslinya)
-local function MakeDraggable(frame, trigger) 
-    local dragging, dragInput, dragStart, startPos
-    trigger.InputBegan:Connect(function(input) 
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
-            dragging = true; dragStart = input.Position; startPos = frame.Position
-            input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end) 
-        end 
-    end)
-    trigger.InputChanged:Connect(function(input) 
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end 
-    end)
-    UIS.InputChanged:Connect(function(input) 
-        if input == dragInput and dragging then 
-            local delta = input.Position - dragStart
-            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) 
-        end 
-    end) 
-end
-MakeDraggable(Main, Main); MakeDraggable(ZONBtn, ZONBtn)
+CreateToggle(TargetPage, "Start Auto Clear World", "AutoClearEnabled")
+CreateSlider(TargetPage, "Start X", 0, 500, 0, "AC_StartX")
+CreateSlider(TargetPage, "End X", 0, 500, 100, "AC_EndX")
+CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
+CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
+CreateSlider(TargetPage, "Max Hits", 10, 200, 40, "AC_MaxHits")
+CreateSlider(TargetPage, "Hover Height", 2, 10, 6, "AC_HoverHeight") 
+CreateSlider(TargetPage, "Hit Delay ms", 0, 100, 30, "AC_HitDelay")
 
--- Header
-local Header = Instance.new("Frame", Main); Header.BackgroundColor3 = Theme.Header; Header.Size = UDim2.new(1, 0, 0, 45); Header.BorderSizePixel = 0
-Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 10)
-local HeaderHide = Instance.new("Frame", Header); HeaderHide.BackgroundColor3 = Theme.Header; HeaderHide.Size = UDim2.new(1, 0, 0.5, 0); HeaderHide.Position = UDim2.new(0, 0, 0.5, 0); HeaderHide.BorderSizePixel = 0
+-- ========================================== --
+-- FUNGSI FISIK & SENSOR (ANTI-SPIN)
+-- ========================================== --
+local function ToggleCXFly(state)
+    local Char = LP.Character
+    local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
+    local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
+    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
 
-local Title = Instance.new("TextLabel", Header); Title.Text = "ZONHUB"; Title.TextColor3 = Theme.Text; Title.Font = Enum.Font.GothamBlack; Title.TextSize = 18; Title.Size = UDim2.new(0.4, 0, 1, 0); Title.Position = UDim2.new(0, 15, 0, 0); Title.BackgroundTransparency = 1; Title.TextXAlignment = Enum.TextXAlignment.Left
-local TitleVer = Instance.new("TextLabel", Header); TitleVer.Text = getgenv().HubVersion; TitleVer.TextColor3 = Theme.Purple; TitleVer.Font = Enum.Font.GothamBold; TitleVer.TextSize = 12; TitleVer.Size = UDim2.new(0, 50, 1, 0); TitleVer.Position = UDim2.new(0, 105, 0, 1); TitleVer.BackgroundTransparency = 1; TitleVer.TextXAlignment = Enum.TextXAlignment.Left
+    if Hum then 
+        Hum.PlatformStand = state 
+    end
 
--- Tombol Header (Discord & Minimize)
-local DiscordBtn = Instance.new("TextButton", Header); DiscordBtn.Size = UDim2.new(0, 100, 0, 28); DiscordBtn.Position = UDim2.new(1, -150, 0.5, -14); DiscordBtn.Text = "Join Discord"; DiscordBtn.BackgroundColor3 = Theme.Discord; DiscordBtn.TextColor3 = Color3.new(1,1,1); DiscordBtn.Font = Enum.Font.GothamBold; DiscordBtn.TextSize = 12; DiscordBtn.AutoButtonColor = false
-Instance.new("UICorner", DiscordBtn).CornerRadius = UDim.new(0, 6)
-DiscordBtn.MouseButton1Click:Connect(function() pcall(function() setclipboard("https://discord.gg/feFrHDXQBp") end) end)
-
-local MinBtn = Instance.new("TextButton", Header); MinBtn.Size = UDim2.new(0, 32, 0, 28); MinBtn.Position = UDim2.new(1, -42, 0.5, -14); MinBtn.Text = "—"; MinBtn.BackgroundColor3 = Theme.Item; MinBtn.TextColor3 = Theme.Text; MinBtn.Font = Enum.Font.GothamBold; MinBtn.TextSize = 12; MinBtn.AutoButtonColor = false
-Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 6)
-
--- Efek Hover untuk Tombol Header
-local function ApplyHover(button, originalColor, hoverColor)
-    button.MouseEnter:Connect(function() TS:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = hoverColor}):Play() end)
-    button.MouseLeave:Connect(function() TS:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = originalColor}):Play() end)
-end
-ApplyHover(DiscordBtn, Theme.Discord, Color3.fromRGB(105, 118, 255))
-ApplyHover(MinBtn, Theme.Item, Color3.fromRGB(45, 48, 55))
-
--- Fungsi Toggle UI
-local function ToggleUI() 
-    Main.Visible = not Main.Visible; ZONBtn.Visible = not Main.Visible
-    if ZONBtn.Visible then ZONBtn.Position = UDim2.new(0, Main.AbsolutePosition.X, 0, Main.AbsolutePosition.Y) else Main.Position = UDim2.new(0, ZONBtn.AbsolutePosition.X, 0, ZONBtn.AbsolutePosition.Y) end 
-end
-MinBtn.MouseButton1Click:Connect(ToggleUI); ZONBtn.MouseButton1Click:Connect(ToggleUI)
-
--- [[ SISTEM TAB & INJECTION ]] --
-local TabContainer = Instance.new("ScrollingFrame", Main); TabContainer.Size = UDim2.new(0, 140, 1, -45); TabContainer.Position = UDim2.new(0, 0, 0, 45); TabContainer.BackgroundColor3 = Theme.Header; TabContainer.BorderSizePixel = 0; TabContainer.ScrollBarThickness = 0
-local TabPadding = Instance.new("UIPadding", TabContainer); TabPadding.PaddingTop = UDim.new(0, 10); TabPadding.PaddingBottom = UDim.new(0, 10)
-local TabListLayout = Instance.new("UIListLayout", TabContainer); TabListLayout.Padding = UDim.new(0, 8); TabListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
-local PageContainer = Instance.new("Frame", Main); PageContainer.Size = UDim2.new(1, -150, 1, -55); PageContainer.Position = UDim2.new(0, 145, 0, 50); PageContainer.BackgroundTransparency = 1
-
-local Tabs = {}; local Pages = {}
-
-local function CreateAutoLoadTab(TabName, DescText, LoadLink)
-    local TBtn = Instance.new("TextButton", TabContainer); TBtn.Size = UDim2.new(0.85, 0, 0, 36); TBtn.BackgroundColor3 = Theme.Item; TBtn.Text = TabName; TBtn.TextColor3 = Theme.SubText; TBtn.Font = Enum.Font.GothamMedium; TBtn.TextSize = 13; TBtn.AutoButtonColor = false
-    Instance.new("UICorner", TBtn).CornerRadius = UDim.new(0, 6)
-    
-    local Page = Instance.new("ScrollingFrame", PageContainer); Page.Size = UDim2.new(1, 0, 1, 0); Page.BackgroundTransparency = 1; Page.Visible = false; Page.BorderSizePixel = 0; Page.ScrollBarThickness = 4; Page.ScrollBarImageColor3 = Theme.Purple
-    local PagePadding = Instance.new("UIPadding", Page); PagePadding.PaddingRight = UDim.new(0, 5)
-    local PageLayout = Instance.new("UIListLayout", Page); PageLayout.Padding = UDim.new(0, 8); PageLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    
-    local LTitle = Instance.new("TextLabel", Page); LTitle.Size = UDim2.new(1,0,0,28); LTitle.BackgroundTransparency = 1; LTitle.Text = TabName .. " Module"; LTitle.TextColor3 = Theme.Purple; LTitle.Font = Enum.Font.GothamBold; LTitle.TextSize = 18; LTitle.TextXAlignment = Enum.TextXAlignment.Left
-    local LDesc = Instance.new("TextLabel", Page); LDesc.Size = UDim2.new(1,0,0,30); LDesc.BackgroundTransparency = 1; LDesc.Text = DescText; LDesc.TextColor3 = Theme.SubText; LDesc.Font = Enum.Font.Gotham; LDesc.TextSize = 12; LDesc.TextWrapped = true; LDesc.TextXAlignment = Enum.TextXAlignment.Left; LDesc.TextYAlignment = Enum.TextYAlignment.Top
-    
-    local Div = Instance.new("Frame", Page); Div.Size = UDim2.new(1,0,0,1); Div.BackgroundColor3 = Theme.Item; Div.BorderSizePixel = 0
-    
-    local StatusLabel = Instance.new("TextLabel", Page); StatusLabel.Size = UDim2.new(1,0,0,35); StatusLabel.BackgroundTransparency = 1; StatusLabel.Text = "Klik tab di samping untuk memuat module..."; StatusLabel.TextColor3 = Theme.Text; StatusLabel.Font = Enum.Font.GothamMedium; StatusLabel.TextSize = 13
-    
-    local isLoaded = false 
-    
-    TBtn.MouseButton1Click:Connect(function()
-        for _, p in pairs(Pages) do p.Visible = false end
-        for _, t in pairs(Tabs) do 
-            TS:Create(t, TweenInfo.new(0.3), {BackgroundColor3 = Theme.Item}):Play()
-            t.TextColor3 = Theme.SubText 
-            t.Font = Enum.Font.GothamMedium
-        end
-        Page.Visible = true
-        TS:Create(TBtn, TweenInfo.new(0.3), {BackgroundColor3 = Theme.Purple}):Play()
-        TBtn.TextColor3 = Color3.new(1,1,1)
-        TBtn.Font = Enum.Font.GothamBold
-        
-        if not isLoaded and LoadLink ~= "" then
-            StatusLabel.Text = "⏳ Sedang mengambil script..."
-            StatusLabel.TextColor3 = Color3.fromRGB(255, 180, 50)
-            isLoaded = true 
+    local parts = {HRP, Hitbox}
+    for _, part in ipairs(parts) do
+        if part then
+            part.Anchored = false 
+            -- [!] ANTI-SPIN: Reset kecepatan sudut agar tidak muter-muter
+            part.RotVelocity = Vector3.zero
+            part.AssemblyAngularVelocity = Vector3.zero
             
-            task.spawn(function()
-                local scriptCode = game:HttpGet(LoadLink)
-                local func, compileErr = loadstring(scriptCode)
-                
-                if func then
-                    local success, runErr = pcall(function()
-                        func(Page) 
-                    end)
-                    
-                    if success then
-                        StatusLabel:Destroy() 
-                    else
-                        StatusLabel.Text = "❌ Gagal Jalan: " .. tostring(runErr)
-                        StatusLabel.TextColor3 = Color3.fromRGB(255, 85, 85)
-                    end
-                else
-                    StatusLabel.Text = "❌ Gagal Load Link Raw!"
-                    StatusLabel.TextColor3 = Color3.fromRGB(255, 85, 85)
-                end
-            end)
+            if state then
+                part.CanCollide = false 
+                local bv = part:FindFirstChild("ZON_FlyBV") or Instance.new("BodyVelocity")
+                bv.Name = "ZON_FlyBV"; bv.MaxForce = Vector3.new(1e9, 1e9, 1e9); bv.Velocity = Vector3.zero; bv.Parent = part
+            else
+                part.CanCollide = true
+                if part:FindFirstChild("ZON_FlyBV") then part.ZON_FlyBV:Destroy() end
+                -- Reset orientasi agar tegak lurus kembali
+                part.CFrame = CFrame.new(part.Position) 
+            end
         end
-    end)
-    table.insert(Tabs, TBtn); table.insert(Pages, Page); return Page, TBtn
+    end
 end
 
-CreateAutoLoadTab("Pabrik", "Memuat otomatis sistem Pabrik.", "https://raw.githubusercontent.com/Koziz/CAW-SCRIPT/refs/heads/main/Pabrik.lua")
-CreateAutoLoadTab("Auto Farm", "Sistem farming resource (Kayu, Batu).", "https://raw.githubusercontent.com/Koziz/CAW-SCRIPT/refs/heads/main/Autofarm.lua") 
-CreateAutoLoadTab("Manager", "Sistem Inventory & Sortir Barang.", "https://raw.githubusercontent.com/ZonHUBs/ZONHUB/refs/heads/main/manager.lua")
-CreateAutoLoadTab("Auto Chat", "Auto Chat.", "https://raw.githubusercontent.com/ZonHUBs/ZONHUB/refs/heads/main/autochat.lua")
-CreateAutoLoadTab("clear", "Sistem Inventory & Sortir Barang.", "https://raw.githubusercontent.com/zikriadirahman-commits/ZONHUB/refs/heads/main/autoclear.lua")
-CreateAutoLoadTab("anti", "Auto Chat.", "https://raw.githubusercontent.com/zikriadirahman-commits/ZONHUB/refs/heads/main/anti.lua")
+local function IsUnbreakable(gridX, gridY)
+    local absoluteZ = getgenv().AC_FixedZ or 0
+    local checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, absoluteZ)
+    local params = OverlapParams.new(); params.FilterDescendantsInstances = {LP.Character, workspace.CurrentCamera}; params.FilterType = Enum.RaycastFilterType.Exclude
+    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
+    for _, part in ipairs(parts) do
+        if part:IsA("BasePart") then
+            local pName = string.lower(part.Name); local pParent = part.Parent and string.lower(part.Parent.Name) or ""
+            if string.find(pName, "bedrock") or string.find(pParent, "bedrock") or string.find(pName, "door") or string.find(pParent, "door") or string.find(pName, "main") then return true end
+        end
+    end
+    return false
+end
 
+local function NeedsBreaking(gridX, gridY)
+    if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return false end
+    local absoluteZ = getgenv().AC_FixedZ or 0
+    local checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, absoluteZ)
+    local params = OverlapParams.new(); params.FilterDescendantsInstances = {LP.Character, workspace.CurrentCamera}; params.FilterType = Enum.RaycastFilterType.Exclude
+    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
+    for _, part in ipairs(parts) do
+        if part:IsA("BasePart") then 
+            local pName = string.lower(part.Name); local pParent = part.Parent and string.lower(part.Parent.Name) or ""
+            if string.find(pName, "door") or string.find(pParent, "door") or string.find(pName, "spawn") then continue end
+            return true 
+        end
+    end
+    return false
+end
+
+local function ServerSyncedGlide(targetPos)
+    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
+    local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    if not Hitbox or not HRP then return end
+    while getgenv().AutoClearEnabled do
+        local currentPos = Hitbox.Position; local distance = (targetPos - currentPos).Magnitude
+        if distance <= getgenv().GlideSpeed then
+            Hitbox.CFrame = CFrame.new(targetPos); HRP.CFrame = CFrame.new(targetPos)
+            if PlayerMovement then pcall(function() PlayerMovement.Position = targetPos end) end; break
+        else
+            local nextPos = currentPos + (targetPos - currentPos).Unit * getgenv().GlideSpeed
+            Hitbox.CFrame = CFrame.new(nextPos); HRP.CFrame = CFrame.new(nextPos)
+            if PlayerMovement then pcall(function() PlayerMovement.Position = nextPos end) end
+        end
+        task.wait() 
+    end
+end
+
+-- ========================================== --
+-- MAIN LOOP (WITH CLEAN STOP)
+-- ========================================== --
+local isRunning = false
+task.spawn(function()
+    while task.wait(0.2) do
+        if getgenv().AutoClearEnabled and not isRunning then
+            isRunning = true
+            local initialHitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
+            if getgenv().AC_ResumeX == nil then 
+                getgenv().AC_ResumeY = getgenv().AC_StartY; getgenv().AC_ArahKanan = true; getgenv().AC_ResumeX = getgenv().AC_StartX
+                if initialHitbox then getgenv().AC_FixedZ = initialHitbox.Position.Z end
+            end
+            local absoluteZ = getgenv().AC_FixedZ or 0; ToggleCXFly(true)
+
+            while getgenv().AutoClearEnabled and getgenv().AC_ResumeY >= getgenv().AC_EndY do
+                local blockTargetY = getgenv().AC_ResumeY - 1 
+                local stepX = getgenv().AC_ArahKanan and 1 or -1
+                local isLayerSatu = (getgenv().AC_ResumeY >= 37)
+
+                while getgenv().AutoClearEnabled do
+                    local currentX = getgenv().AC_ResumeX
+                    if (getgenv().AC_ArahKanan and currentX > getgenv().AC_EndX) or (not getgenv().AC_ArahKanan and currentX < getgenv().AC_StartX) then break end
+                    
+                    if IsUnbreakable(currentX, blockTargetY) then
+                        getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
+                    elseif NeedsBreaking(currentX, blockTargetY) then
+                        local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
+                        local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+                        
+                        local finalPos
+                        if isLayerSatu then
+                            finalPos = Vector3.new(currentX * getgenv().GridSize, (blockTargetY + 1) * getgenv().GridSize + getgenv().AC_HoverHeight, absoluteZ)
+                        else
+                            finalPos = Vector3.new((currentX - stepX) * getgenv().GridSize, blockTargetY * getgenv().GridSize, absoluteZ)
+                        end
+
+                        ServerSyncedGlide(finalPos)
+                        if Hitbox then Hitbox.Anchored = true end; if HRP then HRP.Anchored = true end
+
+                        local failsafe = 0
+                        while NeedsBreaking(currentX, blockTargetY) and getgenv().AutoClearEnabled do
+                            if Hitbox then Hitbox.CFrame = CFrame.new(finalPos) end
+                            if HRP then HRP.CFrame = CFrame.new(finalPos) end
+                            if PlayerMovement then pcall(function() PlayerMovement.Position = finalPos end) end
+                            if IsUnbreakable(currentX, blockTargetY) then break end
+                            RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
+                            failsafe = failsafe + 1
+                            if failsafe > getgenv().AC_MaxHits then getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true; break end
+                            task.wait(getgenv().AC_HitDelay / 1000)
+                        end
+                        if Hitbox then Hitbox.Anchored = false end; if HRP then HRP.Anchored = false end
+                    end
+                    getgenv().AC_ResumeX = getgenv().AC_ResumeX + stepX
+                end
+                if getgenv().AutoClearEnabled then
+                    getgenv().AC_ResumeY = getgenv().AC_ResumeY - 1
+                    getgenv().AC_ArahKanan = not getgenv().AC_ArahKanan
+                    getgenv().AC_ResumeX = getgenv().AC_ArahKanan and getgenv().AC_StartX or getgenv().AC_EndX
+                end
+            end
+            isRunning = false; ToggleCXFly(false) -- [!] CLEAN RESET PHYSICS
+        end
+    end
+end)
