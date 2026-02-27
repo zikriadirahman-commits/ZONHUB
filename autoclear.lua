@@ -2,7 +2,7 @@
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v43 - Ultimate Speed & Jump" 
+getgenv().ScriptVersion = "AutoClear v43.1 - Ultimate Speed & Jump" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -182,6 +182,35 @@ local function WalkToGrid(tX, tY, isFast)
 end
 
 -- ========================================== --
+-- FUNGSI LOMPAT + MAJU SAAT KETEMU BEDROCK
+-- ========================================== --
+local function JumpOverBedrock(stepX)
+    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
+    local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    if not Hitbox then return end
+
+    local currentX = math.floor(Hitbox.Position.X / getgenv().GridSize + 0.5)
+    local currentY = math.floor(Hitbox.Position.Y / getgenv().GridSize + 0.5)
+    local startZ = Hitbox.Position.Z
+
+    -- Gerakan 1: Naik (Lompat Tinggi)
+    local jumpY = currentY + 1
+    local newPosJump = Vector3.new(currentX * getgenv().GridSize, jumpY * getgenv().GridSize, startZ)
+    if Hitbox then Hitbox.CFrame = CFrame.new(newPosJump); Hitbox.Velocity = Vector3.zero end
+    if HRP then HRP.CFrame = CFrame.new(newPosJump); HRP.Velocity = Vector3.zero end
+    if PlayerMovement then pcall(function() PlayerMovement.Position = newPosJump end) end
+    task.wait(0.05)
+
+    -- Gerakan 2: Maju
+    local advanceX = currentX + stepX
+    local newPosAdvance = Vector3.new(advanceX * getgenv().GridSize, jumpY * getgenv().GridSize, startZ)
+    if Hitbox then Hitbox.CFrame = CFrame.new(newPosAdvance); Hitbox.Velocity = Vector3.zero end
+    if HRP then HRP.CFrame = CFrame.new(newPosAdvance); HRP.Velocity = Vector3.zero end
+    if PlayerMovement then pcall(function() PlayerMovement.Position = newPosAdvance end) end
+    task.wait(0.05)
+end
+
+-- ========================================== --
 -- LOGIKA ZIG-ZAG UTAMA 
 -- ========================================== --
 local isRunning = false
@@ -251,9 +280,10 @@ task.spawn(function()
                         tries = tries + 1
                     end
                     
-                    -- Jika sampai batas Failsafe (berarti Bedrock yg tak terdeteksi), blacklist & skip!
+                    -- Jika sampai batas Failsafe (berarti Bedrock yg tak terdeteksi), blacklist & LOMPAT MAJU!
                     if tries >= getgenv().MaxHitFailsafe then
                         getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
+                        JumpOverBedrock(stepX)
                     end
                 end
                 
