@@ -1,12 +1,12 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (V60 BASED ON YOUR SCRIPT + TUNNEL + STONE FIX) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (V60 PLAYER CONTROL & ANTI-JITTER) ]] --
 
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v60 - Tunnel & Stone Fix" 
+getgenv().ScriptVersion = "AutoClear v60 - Player Control & Anti-Jitter" 
 
 -- ========================================== --
--- VARIABEL GLOBAL
+-- VARIABEL GLOBAL (DEFAULT)
 -- ========================================== --
 getgenv().AutoClearEnabled = false
 getgenv().AC_StartX = 0
@@ -14,14 +14,15 @@ getgenv().AC_EndX = 100
 getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
 
+-- Variabel Custom Baru (Bisa diatur via Slider)
+getgenv().AC_MaxHits = 40       -- Default 40 pukulan sebelum pindah
+getgenv().AC_HoverHeight = 4    -- Default tinggi melayang (4 stud)
+getgenv().AC_HitDelay = 30      -- Default jeda pukul (30ms = 0.03 detik)
+
 getgenv().GridSize = 4.5     
-getgenv().BreakDelay = 0.03  
 getgenv().GlideSpeed = 1.5   
 
--- [!] DIUBAH JADI 80 AGAR STONE (BATU) BISA HANCUR (Sekitar 2.4 detik)
-getgenv().MaxHits = 80       
-
--- [!] VARIABEL MEMORI (AGAR BISA MELANJUTKAN DARI TITIK TERAKHIR)
+-- Variabel Memori (Resume State)
 getgenv().AC_ResumeX = nil
 getgenv().AC_ResumeY = nil
 getgenv().AC_ArahKanan = nil
@@ -45,25 +46,33 @@ local Remotes = RS:WaitForChild("Remotes")
 local RemoteBreak = Remotes:WaitForChild("PlayerFist")
 
 -- ========================================== --
--- FUNGSI UI UTILITY (DENGAN RESET MEMORI PADA SLIDER)
+-- FUNGSI UI UTILITY
 -- ========================================== --
 local Theme = { Item = Color3.fromRGB(45, 45, 45), Text = Color3.fromRGB(255, 255, 255), Purple = Color3.fromRGB(140, 80, 255) }
 
 local function CreateToggle(Parent, Text, Var) local Btn = Instance.new("TextButton", Parent); Btn.BackgroundColor3 = Theme.Item; Btn.Size = UDim2.new(1, -10, 0, 35); Btn.Text = ""; Btn.AutoButtonColor = false; local C = Instance.new("UICorner", Btn); C.CornerRadius = UDim.new(0, 6); local T = Instance.new("TextLabel", Btn); T.Text = Text; T.TextColor3 = Theme.Text; T.Font = Enum.Font.GothamSemibold; T.TextSize = 12; T.Size = UDim2.new(1, -40, 1, 0); T.Position = UDim2.new(0, 10, 0, 0); T.BackgroundTransparency = 1; T.TextXAlignment = Enum.TextXAlignment.Left; local IndBg = Instance.new("Frame", Btn); IndBg.Size = UDim2.new(0, 36, 0, 18); IndBg.Position = UDim2.new(1, -45, 0.5, -9); IndBg.BackgroundColor3 = Color3.fromRGB(30,30,30); local IC = Instance.new("UICorner", IndBg); IC.CornerRadius = UDim.new(1,0); local Dot = Instance.new("Frame", IndBg); Dot.Size = UDim2.new(0, 14, 0, 14); Dot.Position = UDim2.new(0, 2, 0.5, -7); Dot.BackgroundColor3 = Color3.fromRGB(100,100,100); local DC = Instance.new("UICorner", Dot); DC.CornerRadius = UDim.new(1,0); Btn.MouseButton1Click:Connect(function() getgenv()[Var] = not getgenv()[Var]; if getgenv()[Var] then Dot:TweenPosition(UDim2.new(1, -16, 0.5, -7), "Out", "Quad", 0.2, true); Dot.BackgroundColor3 = Color3.new(1,1,1); IndBg.BackgroundColor3 = Theme.Purple else Dot:TweenPosition(UDim2.new(0, 2, 0.5, -7), "Out", "Quad", 0.2, true); Dot.BackgroundColor3 = Color3.fromRGB(100,100,100); IndBg.BackgroundColor3 = Color3.fromRGB(30,30,30) end end) end
 local function CreateSlider(Parent, Text, Min, Max, Default, Var) local Frame = Instance.new("Frame", Parent); Frame.BackgroundColor3 = Theme.Item; Frame.Size = UDim2.new(1, -10, 0, 45); local C = Instance.new("UICorner", Frame); C.CornerRadius = UDim.new(0, 6); local Label = Instance.new("TextLabel", Frame); Label.Text = Text .. ": " .. Default; Label.TextColor3 = Theme.Text; Label.BackgroundTransparency = 1; Label.Size = UDim2.new(1, 0, 0, 20); Label.Position = UDim2.new(0, 10, 0, 2); Label.Font = Enum.Font.GothamSemibold; Label.TextSize = 12; Label.TextXAlignment = Enum.TextXAlignment.Left; local SliderBg = Instance.new("TextButton", Frame); SliderBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30); SliderBg.Position = UDim2.new(0, 10, 0, 28); SliderBg.Size = UDim2.new(1, -20, 0, 6); SliderBg.Text = ""; SliderBg.AutoButtonColor = false; local SC = Instance.new("UICorner", SliderBg); SC.CornerRadius = UDim.new(1,0); local Fill = Instance.new("Frame", SliderBg); Fill.BackgroundColor3 = Theme.Purple; Fill.Size = UDim2.new((Default-Min)/(Max-Min), 0, 1, 0); local FC = Instance.new("UICorner", Fill); FC.CornerRadius = UDim.new(1,0); local Dragging = false; local function Update(input) local SizeX = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1); local Val = math.floor(Min + ((Max - Min) * SizeX)); Fill.Size = UDim2.new(SizeX, 0, 1, 0); Label.Text = Text .. ": " .. Val; getgenv()[Var] = Val; 
     
-    -- [!] JIKA SLIDER DIUBAH, RESET MEMORI AGAR MULAI DARI ANGKA BARU
-    getgenv().AC_ResumeX = nil; getgenv().AC_ResumeY = nil; getgenv().AC_ArahKanan = nil; 
+    -- Reset Resume State jika mengubah Area (X dan Y)
+    if string.find(Var, "AC_Start") or string.find(Var, "AC_End") then
+        getgenv().AC_ResumeX = nil; getgenv().AC_ResumeY = nil; getgenv().AC_ArahKanan = nil; 
+    end
 end; SliderBg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then Dragging = true; Update(i) end end); UIS.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then Dragging = false end end); UIS.InputChanged:Connect(function(i) if Dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then Update(i) end end) end
 
+-- MENU UTAMA
 CreateToggle(TargetPage, "Start Auto Clear World", "AutoClearEnabled")
 CreateSlider(TargetPage, "Start X", 0, 500, 0, "AC_StartX")
 CreateSlider(TargetPage, "End X", 0, 500, 100, "AC_EndX")
 CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
+-- MENU KUSTOMISASI BARU
+CreateSlider(TargetPage, "Max Hits (Batas Sabar/Geser)", 10, 200, 40, "AC_MaxHits")
+CreateSlider(TargetPage, "Hover Height (Tinggi Melayang)", 2, 8, 4, "AC_HoverHeight")
+CreateSlider(TargetPage, "Hit Delay ms (Kecepatan Pukul)", 0, 100, 30, "AC_HitDelay")
+
 -- ========================================== --
--- FUNGSI TERBANG FISIK (MURNI BAWAAN KAMU)
+-- FUNGSI TERBANG FISIK
 -- ========================================== --
 local function ToggleCXFly(state)
     local Char = LP.Character
@@ -93,7 +102,7 @@ local function ToggleCXFly(state)
 end
 
 -- ========================================== --
--- SENSOR PINTAR BLOK & BEDROCK/DOOR
+-- SENSOR PINTAR: DETEKSI BLOK
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -103,7 +112,6 @@ local function GetFilterObjects()
     return filter
 end
 
--- [!] DIPERBARUI: Mendeteksi Bedrock DAN Main Door
 local function IsUnbreakable(gridX, gridY)
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
     local startZ = Hitbox and Hitbox.Position.Z or 0
@@ -129,7 +137,6 @@ local function IsUnbreakable(gridX, gridY)
     return false
 end
 
--- Persis sama seperti yang kamu kasih
 local function NeedsBreaking(gridX, gridY)
     if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return false end
     
@@ -145,7 +152,9 @@ local function NeedsBreaking(gridX, gridY)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then 
             local pName = string.lower(part.Name)
-            if string.find(pName, "door") or string.find(pName, "portal") or string.find(pName, "border") or string.find(pName, "spawn") then
+            local parentName = part.Parent and string.lower(part.Parent.Name) or ""
+            
+            if string.find(pName, "door") or string.find(parentName, "door") or string.find(pName, "spawn") then
                 continue
             end
             return true 
@@ -155,36 +164,32 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- SISTEM GLIDE SERVER-SYNC (MURNI BAWAAN KAMU)
+-- SISTEM GLIDE SERVER-SYNC VECTOR3
 -- ========================================== --
-local function ServerSyncedGlide(gX, gY)
+local function ServerSyncedGlide(targetPos)
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
     local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
     if not Hitbox or not HRP then return end
 
-    local startZ = Hitbox.Position.Z
-    local targetPos = Vector3.new(gX * getgenv().GridSize, gY * getgenv().GridSize, startZ)
     local speed = getgenv().GlideSpeed 
     
     while getgenv().AutoClearEnabled do
         local currentPos = Hitbox.Position
-        local distance = (targetPos - currentPos).Magnitude
+        -- Kunci sumbu Z agar tidak belok-belok ke belakang
+        local fixedTarget = Vector3.new(targetPos.X, targetPos.Y, currentPos.Z)
+        local distance = (fixedTarget - currentPos).Magnitude
         
         if distance <= speed then
-            Hitbox.CFrame = CFrame.new(targetPos)
-            Hitbox.Velocity = Vector3.zero
-            HRP.CFrame = CFrame.new(targetPos)
-            HRP.Velocity = Vector3.zero
-            if PlayerMovement then pcall(function() PlayerMovement.Position = targetPos end) end
+            Hitbox.CFrame = CFrame.new(fixedTarget)
+            HRP.CFrame = CFrame.new(fixedTarget)
+            if PlayerMovement then pcall(function() PlayerMovement.Position = fixedTarget end) end
             break
         else
-            local direction = (targetPos - currentPos).Unit
+            local direction = (fixedTarget - currentPos).Unit
             local nextPos = currentPos + (direction * speed)
             
             Hitbox.CFrame = CFrame.new(nextPos)
-            Hitbox.Velocity = Vector3.zero
             HRP.CFrame = CFrame.new(nextPos)
-            HRP.Velocity = Vector3.zero
             if PlayerMovement then pcall(function() PlayerMovement.Position = nextPos end) end
         end
         task.wait() 
@@ -201,7 +206,6 @@ task.spawn(function()
         if getgenv().AutoClearEnabled and not isRunning then
             isRunning = true
             
-            -- [!] MEMUAT MEMORI (RESUME STATE)
             if getgenv().AC_ResumeY == nil then getgenv().AC_ResumeY = getgenv().AC_StartY end
             if getgenv().AC_ArahKanan == nil then getgenv().AC_ArahKanan = true end
             if getgenv().AC_ResumeX == nil then 
@@ -225,30 +229,34 @@ task.spawn(function()
                         getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                     elseif NeedsBreaking(currentX, blockTargetY) then
                         
-                        local hoverY = blockTargetY + 1
-                        
+                        local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
+                        local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+                        local lockZ = Hitbox and Hitbox.Position.Z or 0
+                        local hoverY_Grid = blockTargetY + 1
+
                         -- ========================================== --
-                        -- [!] LOGIKA TEROWONGAN (TURUN 1 BLOK)
-                        -- Jika di udara (hoverY) ada Bedrock/Pintu
+                        -- [!] LOGIKA TEROWONGAN (MUNDUR 1 BLOK)
                         -- ========================================== --
-                        if IsUnbreakable(currentX, hoverY) then
-                            -- Mundur 1 blok dan sejajar dengan tanah
+                        if IsUnbreakable(currentX, hoverY_Grid) then
                             local standX = currentX - stepX
-                            
-                            -- Meluncur ke posisi mundur
-                            ServerSyncedGlide(standX, blockTargetY)
-                            
-                            local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-                            local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-                            local lockZ = Hitbox and Hitbox.Position.Z or 0
                             local tunnelPos = Vector3.new(standX * getgenv().GridSize, blockTargetY * getgenv().GridSize, lockZ)
 
+                            ServerSyncedGlide(tunnelPos)
+                            
+                            -- Merekam CFrame tempat pendaratan persis agar tidak getar
+                            local exactHitboxCF = Hitbox and Hitbox.CFrame
+                            local exactHRPCF = HRP and HRP.CFrame
+
+                            if Hitbox then Hitbox.Anchored = true end
+                            if HRP then HRP.Anchored = true end
+
                             local tunnelFailsafe = 0
-                            -- Hancurkan dari depan
                             while NeedsBreaking(currentX, blockTargetY) and getgenv().AutoClearEnabled do
-                                if Hitbox then Hitbox.CFrame = CFrame.new(tunnelPos); Hitbox.Velocity = Vector3.zero end
-                                if HRP then HRP.CFrame = CFrame.new(tunnelPos); HRP.Velocity = Vector3.zero end
-                                if PlayerMovement then pcall(function() PlayerMovement.Position = tunnelPos end) end
+                                
+                                -- Kunci total anti-getar
+                                if Hitbox and exactHitboxCF then Hitbox.CFrame = exactHitboxCF; Hitbox.Velocity = Vector3.zero end
+                                if HRP and exactHRPCF then HRP.CFrame = exactHRPCF; HRP.Velocity = Vector3.zero end
+                                if PlayerMovement and exactHitboxCF then pcall(function() PlayerMovement.Position = exactHitboxCF.Position end) end
                                 
                                 if IsUnbreakable(currentX, blockTargetY) then
                                     getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
@@ -258,30 +266,41 @@ task.spawn(function()
                                 RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                                 
                                 tunnelFailsafe = tunnelFailsafe + 1
-                                if tunnelFailsafe > getgenv().MaxHits then 
+                                if tunnelFailsafe > getgenv().AC_MaxHits then 
                                     getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                                     break
                                 end
-                                task.wait(getgenv().BreakDelay)
+                                
+                                -- Gunakan Delay Custom dari Slider (dibagi 1000 karena ms)
+                                task.wait(getgenv().AC_HitDelay / 1000)
                             end
+                            
+                            if Hitbox then Hitbox.Anchored = false end
+                            if HRP then HRP.Anchored = false end
                             
                         else
                             -- ========================================== --
-                            -- [!] GLIDE NORMAL DI ATAS (Bawaan Script Kamu)
+                            -- [!] GLIDE NORMAL DI ATAS
                             -- ========================================== --
-                            ServerSyncedGlide(currentX, hoverY)
+                            local targetY_Pos = (hoverY_Grid * getgenv().GridSize) + getgenv().AC_HoverHeight
+                            local hoverPos = Vector3.new(currentX * getgenv().GridSize, targetY_Pos, lockZ)
+
+                            ServerSyncedGlide(hoverPos)
                             
-                            local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-                            local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-                            local lockZ = Hitbox and Hitbox.Position.Z or 0
-                            local lockPos = Vector3.new(currentX * getgenv().GridSize, hoverY * getgenv().GridSize, lockZ)
+                            -- Kunci di titik berhentinya
+                            local exactHitboxCF = Hitbox and Hitbox.CFrame
+                            local exactHRPCF = HRP and HRP.CFrame
+
+                            if Hitbox then Hitbox.Anchored = true end
+                            if HRP then HRP.Anchored = true end
 
                             local extremeFailsafe = 0
                             while NeedsBreaking(currentX, blockTargetY) and getgenv().AutoClearEnabled do
                                 
-                                if Hitbox then Hitbox.CFrame = CFrame.new(lockPos); Hitbox.Velocity = Vector3.zero end
-                                if HRP then HRP.CFrame = CFrame.new(lockPos); HRP.Velocity = Vector3.zero end
-                                if PlayerMovement then pcall(function() PlayerMovement.Position = lockPos end) end
+                                -- Kunci total anti-getar
+                                if Hitbox and exactHitboxCF then Hitbox.CFrame = exactHitboxCF; Hitbox.Velocity = Vector3.zero end
+                                if HRP and exactHRPCF then HRP.CFrame = exactHRPCF; HRP.Velocity = Vector3.zero end
+                                if PlayerMovement and exactHitboxCF then pcall(function() PlayerMovement.Position = exactHitboxCF.Position end) end
                                 
                                 if IsUnbreakable(currentX, blockTargetY) then
                                     getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
@@ -291,22 +310,25 @@ task.spawn(function()
                                 RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                                 
                                 extremeFailsafe = extremeFailsafe + 1
-                                if extremeFailsafe > getgenv().MaxHits then 
+                                if extremeFailsafe > getgenv().AC_MaxHits then 
                                     getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                                     break
                                 end
-                                task.wait(getgenv().BreakDelay)
+                                
+                                -- Gunakan Delay Custom dari Slider
+                                task.wait(getgenv().AC_HitDelay / 1000)
                             end
+                            
+                            if Hitbox then Hitbox.Anchored = false end
+                            if HRP then HRP.Anchored = false end
                         end
                     end
 
-                    -- Hanya berpindah X jika tombol masih menyala
                     if getgenv().AutoClearEnabled then
                         getgenv().AC_ResumeX = getgenv().AC_ResumeX + stepX
                     end
                 end
 
-                -- Pindah ke baris (Y) bawahnya jika baris saat ini selesai
                 if getgenv().AutoClearEnabled and isRowFinished(getgenv().AC_ResumeX) then
                     getgenv().AC_ResumeY = getgenv().AC_ResumeY - 1
                     getgenv().AC_ArahKanan = not getgenv().AC_ArahKanan
@@ -314,7 +336,6 @@ task.spawn(function()
                 end
             end
             
-            -- Jika tombol dimatikan, loop terputus, tapi AC_ResumeX & Y tetap tersimpan di memori.
             isRunning = false
             if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
             ToggleCXFly(false)
