@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (PERMANENT SPEED & SMART MEMORY JUMP) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (PERMANENT CORE & SMART BEDROCK SENSOR) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v44 - Smart Bedrock Bypass" 
+getgenv().ScriptVersion = "AutoClear v45 - Permanent Core Fix" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -15,8 +15,13 @@ getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.03  
-getgenv().StepDelay = 0.1     -- [AMAN] Jalan V28 khusus pas Start awal (Permanen)
-getgenv().MaxHitFailsafe = 15 -- [CEPAT] Bot hanya memukul 0.4 detik. Jika tak hancur, langsung LOMPAT!
+getgenv().StepDelay = 0.1      -- [JALAN AMAN] Untuk start awal (Permanen)
+getgenv().MaxHitFailsafe = 100 -- [DIKEMBALIKAN KE 100] Agar Background pasti hancur sempurna dan tidak memicu lompat error!
+
+-- [ SENSOR BEDROCK BARU ] --
+-- Jika ada bedrock/blok keras di game yang namanya berbeda, cukup tambahkan namanya di dalam tanda kutip ini.
+-- Bot akan langsung tahu itu keras, TIDAK AKAN dipukul, dan OTOMATIS LOMPAT!
+getgenv().UnbreakableBlocks = {"bedrock", "border", "door", "portal", "spawn", "locked", "unbreakable"}
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 -- ========================================== --
@@ -80,7 +85,7 @@ local function ToggleCXFly(state)
 end
 
 -- ========================================== --
--- SENSOR PINTAR DENGAN MEMORI (BLACKLIST = HALANGAN)
+-- SENSOR BEDROCK & RINTANGAN
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -91,7 +96,7 @@ local function GetFilterObjects()
 end
 
 local function IsObstacle(gridX, gridY)
-    -- [KUNCI UTAMA] Jika blok ini sudah dicap tak bisa hancur (Blacklist), jadikan sebagai pijakan untuk LOMPAT!
+    -- Jika blok ini pernah dipukul tapi gak hancur (Blacklist), anggap sebagai rintangan lompat!
     if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return true end
 
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
@@ -106,8 +111,9 @@ local function IsObstacle(gridX, gridY)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then
             local pName = string.lower(part.Name)
-            if string.find(pName, "door") or string.find(pName, "portal") or string.find(pName, "entrance") or string.find(pName, "spawn") or string.find(pName, "bedrock") or string.find(pName, "border") or string.find(pName, "locked") or string.find(pName, "unbreakable") then
-                return true
+            -- Mengecek daftar nama Bedrock dari variabel global di atas
+            for _, uName in ipairs(getgenv().UnbreakableBlocks) do
+                if string.find(pName, uName) then return true end
             end
         end
     end
@@ -116,7 +122,7 @@ end
 
 local function NeedsBreaking(gridX, gridY)
     if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return false end
-    if IsObstacle(gridX, gridY) then return false end
+    if IsObstacle(gridX, gridY) then return false end -- Jika sensor mendeteksi Bedrock, JANGAN dihancurkan! Langsung return false.
 
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
     local startZ = Hitbox and Hitbox.Position.Z or 0
@@ -134,7 +140,7 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- FUNGSI JALAN MURNI V28 (PARKOUR & NGEBUT)
+-- FUNGSI JALAN NGEBUT (PERMANEN SEPERTI SEBELUMNYA)
 -- ========================================== --
 local function WalkToGrid(tX, tY, isFast)
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
@@ -145,6 +151,7 @@ local function WalkToGrid(tX, tY, isFast)
     local currentX = math.floor(Hitbox.Position.X / getgenv().GridSize + 0.5)
     local currentY = math.floor(Hitbox.Position.Y / getgenv().GridSize + 0.5)
 
+    local stuckCounter = 0
     while (currentX ~= tX or currentY ~= tY) do
         if not getgenv().AutoClearEnabled then break end
         
@@ -154,7 +161,7 @@ local function WalkToGrid(tX, tY, isFast)
         if currentX ~= tX then 
             local stepDir = (tX > currentX) and 1 or -1
             if IsObstacle(currentX + stepDir, currentY) then
-                nextY = currentY + 1
+                nextY = currentY + 1 -- LOGIKA LOMPAT
             else
                 nextX = currentX + stepDir
             end
@@ -165,6 +172,13 @@ local function WalkToGrid(tX, tY, isFast)
             nextY = currentY - 1 
         end
         
+        if nextX == currentX and nextY == currentY then
+            stuckCounter = stuckCounter + 1
+            if stuckCounter > 3 then break end
+        else
+            stuckCounter = 0
+        end
+
         currentX = nextX
         currentY = nextY
         
@@ -174,7 +188,7 @@ local function WalkToGrid(tX, tY, isFast)
         if HRP then HRP.CFrame = CFrame.new(newPos); HRP.Velocity = Vector3.zero end
         if PlayerMovement then pcall(function() PlayerMovement.Position = newPos end) end
         
-        -- KEPUTUSAN KECEPATAN TETAP PERMANEN
+        -- KEPUTUSAN NGEBUT PERMANEN
         if isFast then
             task.wait() 
         else
@@ -233,6 +247,7 @@ task.spawn(function()
                         standY = blockTargetY + 1
                     end
 
+                    -- JIKA TARGET BERDIRI ADALAH BEDROCK, LOMPAT NAIK!
                     local maxUp = 0
                     while IsObstacle(standX, standY) and maxUp < 5 do
                         standY = standY + 1
@@ -261,8 +276,8 @@ task.spawn(function()
                         tries = tries + 1
                     end
                     
-                    -- JIKA TAK HANCUR, MASUK BLACKLIST. 
-                    -- Pada loop selanjutnya, blok ini akan dibaca sebagai Pijakan/Halangan, lalu dilewati!
+                    -- Jika bot terpaksa memukul 100x dan tidak hancur, otomatis masuk Blacklist.
+                    -- Di grid selanjutnya, bot akan LANGSUNG TAHU ini batu dan melompatinya!
                     if tries >= getgenv().MaxHitFailsafe then
                         getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                     end
