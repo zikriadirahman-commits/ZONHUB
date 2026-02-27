@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (NO-JUMP, EDGE FIX, BG FIX) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (DIRECT GLIDE & OBSTACLE BYPASS) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v36 - Absolute Perfection" 
+getgenv().ScriptVersion = "AutoClear v37 - Fast Direct Glide" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -14,9 +14,8 @@ getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
-getgenv().BreakDelay = 0.03   -- Sedikit dinaikkan agar Server sempat menghapus Background
-getgenv().StepDelay = 0.15    -- Smooth walk (Lerp) speed
-getgenv().MaxHitFailsafe = 100 -- Diperbesar agar sabar menunggu Background hancur
+getgenv().BreakDelay = 0.03   -- Pas untuk menghancurkan Background
+getgenv().MaxHitFailsafe = 100 
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 -- ========================================== --
@@ -90,7 +89,7 @@ local function GetFilterObjects()
     return filter
 end
 
--- FIX: Menghapus deteksi "CanCollide". Bot TIDAK AKAN LOMPAT melihat tanah sisa, HANYA melompat jika bertemu Bedrock.
+-- FIX: Ditambahkan "door" ke daftar rintangan keras
 local function IsSolidObstacle(gridX, gridY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
@@ -105,7 +104,7 @@ local function IsSolidObstacle(gridX, gridY)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then
             local pName = string.lower(part.Name)
-            if string.find(pName, "bedrock") or string.find(pName, "border") or string.find(pName, "portal") or string.find(pName, "spawn") then
+            if string.find(pName, "bedrock") or string.find(pName, "border") or string.find(pName, "portal") or string.find(pName, "spawn") or string.find(pName, "door") then
                 return true 
             end
         end
@@ -113,6 +112,7 @@ local function IsSolidObstacle(gridX, gridY)
     return false
 end
 
+-- FIX: Ditambahkan "door" agar dilewati langsung
 local function NeedsBreaking(gridX, gridY)
     if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return false end
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
@@ -128,7 +128,7 @@ local function NeedsBreaking(gridX, gridY)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then 
             local pName = string.lower(part.Name)
-            if string.find(pName, "bedrock") or string.find(pName, "border") or string.find(pName, "spawn") or string.find(pName, "portal") then continue end
+            if string.find(pName, "bedrock") or string.find(pName, "border") or string.find(pName, "spawn") or string.find(pName, "portal") or string.find(pName, "door") then continue end
             return true 
         end
     end
@@ -136,44 +136,36 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- JALAN MENYAMPING SECARA HALUS (LERP)
+-- [ BARU! ] DIRECT GLIDE (SANGAT CEPAT & HALUS)
 -- ========================================== --
 local function WalkToGrid(tX, tY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
     if not MyHitbox then return end
 
-    local startZ = MyHitbox.Position.Z
-    local currentX = math.floor(MyHitbox.Position.X / getgenv().GridSize + 0.5)
-    local currentY = math.floor(MyHitbox.Position.Y / getgenv().GridSize + 0.5)
-
-    local failsafe = 0
-    while (currentX ~= tX or currentY ~= tY) do
+    local targetPos = Vector3.new(tX * getgenv().GridSize, tY * getgenv().GridSize, MyHitbox.Position.Z)
+    local startPos = MyHitbox.Position
+    local distance = (targetPos - startPos).Magnitude
+    
+    -- Jika posisi sudah sangat dekat, tidak perlu jalan lagi
+    if distance < 1 then
+        MyHitbox.CFrame = CFrame.new(targetPos)
+        if PlayerMovement then pcall(function() PlayerMovement.Position = targetPos end) end
+        return
+    end
+    
+    -- Menghitung frame lerp berdasarkan jarak (Makin jauh jaraknya, makin ngebut dia meluncur)
+    local blocksDist = distance / getgenv().GridSize
+    local steps = math.clamp(math.floor(blocksDist * 4), 4, 30) 
+    
+    for i = 1, steps do
         if not getgenv().AutoClearEnabled then break end
         
-        if currentX ~= tX then 
-            currentX = currentX + (tX > currentX and 1 or -1)
-        elseif currentY ~= tY then 
-            currentY = currentY + (tY > currentY and 1 or -1) 
-        end
+        local lerpPos = startPos:Lerp(targetPos, i / steps)
+        MyHitbox.CFrame = CFrame.new(lerpPos)
         
-        local targetWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
-        
-        local startPos = MyHitbox.Position
-        local steps = 15 
-        for i = 1, steps do
-            if not getgenv().AutoClearEnabled then break end
-            
-            local lerpPos = startPos:Lerp(targetWorldPos, i / steps)
-            MyHitbox.CFrame = CFrame.new(lerpPos)
-            
-            if PlayerMovement then pcall(function() PlayerMovement.Position = lerpPos end) end
-            
-            task.wait(getgenv().StepDelay / steps) 
-        end
-        
-        failsafe = failsafe + 1
-        if failsafe > 30 then break end 
+        if PlayerMovement then pcall(function() PlayerMovement.Position = lerpPos end) end
+        task.wait(0.01) -- Frame rate meluncur maksimal tanpa nyangkut
     end
 end
 
@@ -214,16 +206,13 @@ task.spawn(function()
                     
                     if not NeedsBreaking(currentX, blockTargetY) then continue end
                     
-                    -- [ FIX 1: PENANGANAN X=0 (BORDER KIRI/KANAN MENTOK) ]
                     local standX = currentX - stepX
                     local standY = blockTargetY
 
                     if standX < getgenv().AC_StartX or standX > getgenv().AC_EndX then
-                        -- Jika mentok ujung map, otomatis berdiri di ATAS blok tersebut
                         standX = currentX
                         standY = blockTargetY + 1
                     else
-                        -- [ FIX 2: HANYA LOMPAT JIKA KETEMU BEDROCK ]
                         local maxUp = 0
                         while IsSolidObstacle(standX, standY) and maxUp < 5 do
                             standY = standY + 1
@@ -233,7 +222,6 @@ task.spawn(function()
                     
                     WalkToGrid(standX, standY)
                     
-                    -- [ FIX 3: KUNCI POSISI SAAT BREAK AGAR TIDAK MANTUL/GETAR ]
                     local HitboxFolder = workspace:FindFirstChild("Hitbox")
                     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
                     local lockCFrame = MyHitbox and MyHitbox.CFrame or nil
@@ -242,10 +230,8 @@ task.spawn(function()
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
                         
-                        -- Loop ini tidak akan berhenti sampai Foreground & Background HANCUR
                         if not NeedsBreaking(currentX, blockTargetY) then break end
 
-                        -- Memaksa karakter diam persis di tempat saat sedang memukul
                         if MyHitbox and lockCFrame then
                             MyHitbox.CFrame = lockCFrame
                             MyHitbox.Velocity = Vector3.zero
