@@ -1,9 +1,9 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (V64 HYBRID LAYER SYSTEM) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (V65 ZERO-SPIN EDITION) ]] --
 
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v64 - Hybrid Glide & Walk" 
+getgenv().ScriptVersion = "AutoClear v65 - Zero-Spin & Clean Stop" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL
@@ -57,20 +57,30 @@ CreateSlider(TargetPage, "End X", 0, 500, 100, "AC_EndX")
 CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 CreateSlider(TargetPage, "Max Hits", 10, 200, 40, "AC_MaxHits")
-CreateSlider(TargetPage, "Hover Height (Y37)", 2, 10, 6, "AC_HoverHeight") 
+CreateSlider(TargetPage, "Hover Height", 2, 10, 6, "AC_HoverHeight") 
 CreateSlider(TargetPage, "Hit Delay ms", 0, 100, 30, "AC_HitDelay")
 
 -- ========================================== --
--- FUNGSI FISIK & SENSOR
+-- FUNGSI FISIK & SENSOR (ANTI-SPIN)
 -- ========================================== --
 local function ToggleCXFly(state)
     local Char = LP.Character
     local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
+    local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
+
+    if Hum then 
+        Hum.PlatformStand = state 
+    end
+
     local parts = {HRP, Hitbox}
     for _, part in ipairs(parts) do
         if part then
             part.Anchored = false 
+            -- [!] ANTI-SPIN: Reset kecepatan sudut agar tidak muter-muter
+            part.RotVelocity = Vector3.zero
+            part.AssemblyAngularVelocity = Vector3.zero
+            
             if state then
                 part.CanCollide = false 
                 local bv = part:FindFirstChild("ZON_FlyBV") or Instance.new("BodyVelocity")
@@ -78,23 +88,17 @@ local function ToggleCXFly(state)
             else
                 part.CanCollide = true
                 if part:FindFirstChild("ZON_FlyBV") then part.ZON_FlyBV:Destroy() end
+                -- Reset orientasi agar tegak lurus kembali
+                part.CFrame = CFrame.new(part.Position) 
             end
         end
     end
 end
 
-local function GetFilterObjects()
-    local filter = {LP.Character, workspace.CurrentCamera}
-    if workspace:FindFirstChild("Hitbox") then table.insert(filter, workspace.Hitbox) end
-    if workspace:FindFirstChild("DroppedItems") then table.insert(filter, workspace.DroppedItems) end
-    if workspace:FindFirstChild("Items") then table.insert(filter, workspace.Items) end
-    return filter
-end
-
 local function IsUnbreakable(gridX, gridY)
     local absoluteZ = getgenv().AC_FixedZ or 0
     local checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, absoluteZ)
-    local params = OverlapParams.new(); params.FilterDescendantsInstances = GetFilterObjects(); params.FilterType = Enum.RaycastFilterType.Exclude
+    local params = OverlapParams.new(); params.FilterDescendantsInstances = {LP.Character, workspace.CurrentCamera}; params.FilterType = Enum.RaycastFilterType.Exclude
     local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then
@@ -109,7 +113,7 @@ local function NeedsBreaking(gridX, gridY)
     if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return false end
     local absoluteZ = getgenv().AC_FixedZ or 0
     local checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, absoluteZ)
-    local params = OverlapParams.new(); params.FilterDescendantsInstances = GetFilterObjects(); params.FilterType = Enum.RaycastFilterType.Exclude
+    local params = OverlapParams.new(); params.FilterDescendantsInstances = {LP.Character, workspace.CurrentCamera}; params.FilterType = Enum.RaycastFilterType.Exclude
     local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then 
@@ -140,7 +144,7 @@ local function ServerSyncedGlide(targetPos)
 end
 
 -- ========================================== --
--- MAIN LOOP
+-- MAIN LOOP (WITH CLEAN STOP)
 -- ========================================== --
 local isRunning = false
 task.spawn(function()
@@ -157,7 +161,7 @@ task.spawn(function()
             while getgenv().AutoClearEnabled and getgenv().AC_ResumeY >= getgenv().AC_EndY do
                 local blockTargetY = getgenv().AC_ResumeY - 1 
                 local stepX = getgenv().AC_ArahKanan and 1 or -1
-                local isLayerSatu = (getgenv().AC_ResumeY >= 37) -- Deteksi Layer
+                local isLayerSatu = (getgenv().AC_ResumeY >= 37)
 
                 while getgenv().AutoClearEnabled do
                     local currentX = getgenv().AC_ResumeX
@@ -169,13 +173,10 @@ task.spawn(function()
                         local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
                         local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
                         
-                        -- LOGIKA POSISI (HYBRID)
                         local finalPos
                         if isLayerSatu then
-                            -- Layer Atas: Glide di ketinggian 6
                             finalPos = Vector3.new(currentX * getgenv().GridSize, (blockTargetY + 1) * getgenv().GridSize + getgenv().AC_HoverHeight, absoluteZ)
                         else
-                            -- Layer Bawah: Turun ke tanah, gali dari samping
                             finalPos = Vector3.new((currentX - stepX) * getgenv().GridSize, blockTargetY * getgenv().GridSize, absoluteZ)
                         end
 
@@ -197,11 +198,13 @@ task.spawn(function()
                     end
                     getgenv().AC_ResumeX = getgenv().AC_ResumeX + stepX
                 end
-                getgenv().AC_ResumeY = getgenv().AC_ResumeY - 1
-                getgenv().AC_ArahKanan = not getgenv().AC_ArahKanan
-                getgenv().AC_ResumeX = getgenv().AC_ArahKanan and getgenv().AC_StartX or getgenv().AC_EndX
+                if getgenv().AutoClearEnabled then
+                    getgenv().AC_ResumeY = getgenv().AC_ResumeY - 1
+                    getgenv().AC_ArahKanan = not getgenv().AC_ArahKanan
+                    getgenv().AC_ResumeX = getgenv().AC_ArahKanan and getgenv().AC_StartX or getgenv().AC_EndX
+                end
             end
-            isRunning = false; ToggleCXFly(false)
+            isRunning = false; ToggleCXFly(false) -- [!] CLEAN RESET PHYSICS
         end
     end
 end)
