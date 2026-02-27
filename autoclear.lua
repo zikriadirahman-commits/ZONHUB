@@ -1,9 +1,9 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (V49 RESTORED + FAST SKIP) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (V49 BASE + FAST SKIP FIXED) ]] --
 
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v49 - Restored & Fast Next" 
+getgenv().ScriptVersion = "AutoClear v49 - Server Glide & Fast Next" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL
@@ -17,10 +17,6 @@ getgenv().AC_EndY = 6
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.03  
 getgenv().GlideSpeed = 1.5   -- Standar mulus (jangan terlalu besar agar tidak teleport)
-
--- [!] KUNCI INSTAN PINDAH: Batas maksimal pukulan per kotak. 
--- 30 pukulan = sekitar 0.9 detik. Sangat cepat untuk pindah!
-getgenv().MaxHits = 30 
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 
@@ -84,7 +80,7 @@ local function ToggleCXFly(state)
 end
 
 -- ========================================== --
--- SENSOR PINTAR BLOK & BEDROCK (DIKEMBALIKAN 100%)
+-- SENSOR PINTAR BLOK & BEDROCK (DIKEMBALIKAN)
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -103,7 +99,7 @@ local function IsBedrock(gridX, gridY)
     params.FilterDescendantsInstances = GetFilterObjects()
     params.FilterType = Enum.RaycastFilterType.Exclude
 
-    -- Sensor DIKEMBALIKAN ke 3x3x50 agar pasti work
+    -- Sensor dikembalikan ke 3x3x50 agar tidak error/diam saja
     local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") and string.match(string.lower(part.Name), "bedrock") then
@@ -124,6 +120,7 @@ local function NeedsBreaking(gridX, gridY)
     params.FilterDescendantsInstances = GetFilterObjects()
     params.FilterType = Enum.RaycastFilterType.Exclude
 
+    -- Sensor dikembalikan ke 3x3x50 agar akurat mendeteksi blok/background
     local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then 
@@ -230,24 +227,32 @@ task.spawn(function()
                     local lockPos = Vector3.new(currentX * getgenv().GridSize, hoverY * getgenv().GridSize, lockZ)
 
                     -- ========================================== --
-                    -- STRICT BREAK LOOP (FAST SKIP)
+                    -- STRICT BREAK LOOP (INSTAN PINDAH)
                     -- ========================================== --
+                    -- Memakai loop while agar dia tidak membuang waktu memanggil Glide lagi, 
+                    -- sehingga saat server melenyapkan block, script langsung menyadari & putus loop-nya.
                     while NeedsBreaking(currentX, blockTargetY) and getgenv().AutoClearEnabled do
                         
+                        -- Mengunci koordinat karakter secara absolut di tempat
                         if Hitbox then Hitbox.CFrame = CFrame.new(lockPos); Hitbox.Velocity = Vector3.zero end
                         if HRP then HRP.CFrame = CFrame.new(lockPos); HRP.Velocity = Vector3.zero end
                         if PlayerMovement then pcall(function() PlayerMovement.Position = lockPos end) end
                         
+                        -- Cek darurat Bedrock
                         if IsBedrock(currentX, blockTargetY) then
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                             break
                         end
                         
+                        -- Lempar pukulan ke server
                         RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                         
                         extremeFailsafe = extremeFailsafe + 1
-                        -- [!] MEMAKAI BATAS BARU YANG LEBIH CEPAT (30 Hits = 0.9 detik)
-                        if extremeFailsafe > getgenv().MaxHits then 
+                        
+                        -- [!] INI BAGIAN YANG SAYA UBAH: DARI 150 JADI 25
+                        -- Kalau dia sudah mukul 25 kali (~0.7 detik) tapi sensornya masih nyangkut ke pemandangan, 
+                        -- dia langsung skip paksa ke blok sebelahnya. Nggak ada lagi nunggu mematung!
+                        if extremeFailsafe > 25 then 
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                             break
                         end
