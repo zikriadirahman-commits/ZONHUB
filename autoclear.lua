@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (DUAL-SPEED SMART WALK) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (ULTRA FAST TRANSITION FIX) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v38 - Dual Speed Fix" 
+getgenv().ScriptVersion = "AutoClear v39 - Ultra Fast Next" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -14,9 +14,8 @@ getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
-getgenv().BreakDelay = 0.03   -- Kecepatan break yang aman untuk Background
-getgenv().StartDelay = 0.15   -- [LOGIKA 1] Kecepatan lambat (aman) saat awal mulai/jarak jauh
-getgenv().FastDelay = 0.03    -- [LOGIKA 2] Kecepatan ngebut (responsif) saat pindah ke blok sebelah
+getgenv().BreakDelay = 0.03   -- Kecepatan pukul
+getgenv().StartDelay = 0.15   -- Waktu lerp (santai) untuk jarak jauh
 getgenv().MaxHitFailsafe = 100 
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
@@ -136,7 +135,7 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- DUAL LOGIC JALAN (SANTAI & NGEBUT)
+-- DUAL LOGIC JALAN (REVISI ULTRA CEPAT)
 -- ========================================== --
 local function WalkToGrid(tX, tY, isFastMove)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
@@ -147,31 +146,37 @@ local function WalkToGrid(tX, tY, isFastMove)
     local startPos = MyHitbox.Position
     local distance = (targetPos - startPos).Magnitude
     
+    -- Kalau sudah pas di titik, gausah jalan
     if distance < 0.5 then
         MyHitbox.CFrame = CFrame.new(targetPos)
         if PlayerMovement then pcall(function() PlayerMovement.Position = targetPos end) end
         return
     end
     
-    -- Pilih kecepatan berdasarkan input (Jauh = Santai, Dekat = Cepat)
-    local speedPerBlock = isFastMove and getgenv().FastDelay or getgenv().StartDelay
-    local blocksDist = distance / getgenv().GridSize
-    
-    -- Hitung total waktu animasi
-    local totalTime = blocksDist * speedPerBlock
-    if totalTime < 0.05 then totalTime = 0.05 end 
-    
-    local steps = math.clamp(math.floor(totalTime / 0.015), 3, 60)
-    
-    for i = 1, steps do
-        if not getgenv().AutoClearEnabled then break end
-        
-        local lerpPos = startPos:Lerp(targetPos, i / steps)
-        MyHitbox.CFrame = CFrame.new(lerpPos)
-        
-        if PlayerMovement then pcall(function() PlayerMovement.Position = lerpPos end) end
-        
-        task.wait(totalTime / steps)
+    if isFastMove then
+        -- [ NGEBUT ] Membelah pergerakan ke target hanya dalam 2 frame cepat (Batas maksimal aman anti-cheat)
+        local steps = 2
+        for i = 1, steps do
+            if not getgenv().AutoClearEnabled then break end
+            
+            local lerpPos = startPos:Lerp(targetPos, i / steps)
+            MyHitbox.CFrame = CFrame.new(lerpPos)
+            if PlayerMovement then pcall(function() PlayerMovement.Position = lerpPos end) end
+            
+            task.wait() -- Tunggu seminimal mungkin (0.01 detik) agar nampak instan tapi server nerima
+        end
+    else
+        -- [ SANTAI ] Mulus untuk jarak jauh (Lebih dari 1 blok)
+        local steps = 15
+        for i = 1, steps do
+            if not getgenv().AutoClearEnabled then break end
+            
+            local lerpPos = startPos:Lerp(targetPos, i / steps)
+            MyHitbox.CFrame = CFrame.new(lerpPos)
+            if PlayerMovement then pcall(function() PlayerMovement.Position = lerpPos end) end
+            
+            task.wait(getgenv().StartDelay / steps)
+        end
     end
 end
 
@@ -226,21 +231,19 @@ task.spawn(function()
                         end
                     end
                     
-                    -- [ PENENTUAN 2 LOGIKA JALAN SECARA OTOMATIS ]
                     local HitboxFolder = workspace:FindFirstChild("Hitbox")
                     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
                     local useFastMove = false
                     
                     if MyHitbox then
-                        -- Jika jarak target berdirinya kurang dari atau sama dengan 1.5 blok, berarti kita cuma pindah ke sebelah (Ngebut!)
-                        -- Kalau lebih dari itu (berarti baru Start atau pindah baris), jalan santai!
+                        -- FIX: Jika jarak ke grid sebelahnya ≤ 8 studs (kurang lebih jarak 1-2 blok), LANGSUNG NGEBUT!
                         local distToTarget = (Vector3.new(standX * getgenv().GridSize, standY * getgenv().GridSize, 0) - Vector3.new(MyHitbox.Position.X, MyHitbox.Position.Y, 0)).Magnitude
-                        if distToTarget <= 7 then 
+                        if distToTarget <= 8 then 
                             useFastMove = true
                         end
                     end
 
-                    -- Eksekusi jalan dengan kecepatan yang tepat
+                    -- Jalan! (Ngebut kalau dekat, Halus kalau jauh)
                     WalkToGrid(standX, standY, useFastMove)
                     
                     local lockCFrame = MyHitbox and MyHitbox.CFrame or nil
@@ -248,8 +251,11 @@ task.spawn(function()
                     
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
+                        
+                        -- Cek hancur
                         if not NeedsBreaking(currentX, blockTargetY) then break end
 
+                        -- Diam mantap saat mukul
                         if MyHitbox and lockCFrame then
                             MyHitbox.CFrame = lockCFrame
                             MyHitbox.Velocity = Vector3.zero
@@ -260,6 +266,7 @@ task.spawn(function()
                         tries = tries + 1
                     end
                     
+                    -- Masukkan ke blacklist kalau keras kepala (tidak hancur)
                     if tries >= getgenv().MaxHitFailsafe then
                         getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                     end
