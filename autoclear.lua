@@ -1,13 +1,13 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (V44 GLIDE EDITION + STANDALONE UI) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (V44 PERFECT GLIDE & STRICT BREAK) ]] --
 
-getgenv().ScriptVersion = "AutoClear v44 - Pure Glide & Strict Break" 
+getgenv().ScriptVersion = "AutoClear v44 - Pure Glide & Instant Bedrock Skip" 
 
 -- ========================================== --
 -- MEMBUAT MENU UI SENDIRI (STANDALONE)
 -- ========================================== --
 local CoreGui = game:GetService("CoreGui")
 local oldGui = CoreGui:FindFirstChild("ZonHub_AutoClear_UI")
-if oldGui then oldGui:Destroy() end -- Hapus UI lama jika di-execute ulang
+if oldGui then oldGui:Destroy() end
 
 local sg = Instance.new("ScreenGui")
 sg.Name = "ZonHub_AutoClear_UI"
@@ -20,7 +20,7 @@ TargetPage.Size = UDim2.new(0, 250, 0, 310)
 TargetPage.Position = UDim2.new(0, 20, 0.4, 0)
 TargetPage.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 TargetPage.Active = true
-TargetPage.Draggable = true -- Menu bisa digeser-geser
+TargetPage.Draggable = true 
 
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 8)
@@ -41,7 +41,7 @@ local Title = Instance.new("TextLabel")
 Title.Parent = TargetPage
 Title.Size = UDim2.new(1, 0, 0, 20)
 Title.BackgroundTransparency = 1
-Title.Text = "ZonHub AutoClear v44"
+Title.Text = "ZonHub AutoClear v44 Glide"
 Title.TextColor3 = Color3.fromRGB(140, 80, 255)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 14
@@ -57,7 +57,7 @@ getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.03  
-getgenv().StepDelay = 0.1     
+getgenv().StepDelay = 0.05 -- Dipercepat karena Glide instan     
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 
@@ -68,7 +68,6 @@ local RS = game:GetService("ReplicatedStorage")
 local UIS = game:GetService("UserInputService")
 local VirtualUser = game:GetService("VirtualUser") 
 
--- Anti AFK
 LP.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
 
 local PlayerMovement
@@ -92,36 +91,7 @@ CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- FUNGSI TERBANG / GLIDE CORE
--- ========================================== --
-local function ToggleCXFly(state)
-    local Char = LP.Character
-    local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
-    local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
-    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-
-    if Hum then Hum.PlatformStand = state end
-
-    local parts = {HRP, Hitbox}
-    for _, part in ipairs(parts) do
-        if part then
-            if state then
-                part.CanCollide = false 
-                local bv = part:FindFirstChild("ZON_FlyBV") or Instance.new("BodyVelocity")
-                bv.Name = "ZON_FlyBV"
-                bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-                bv.Velocity = Vector3.zero 
-                bv.Parent = part
-            else
-                part.CanCollide = true
-                if part:FindFirstChild("ZON_FlyBV") then part.ZON_FlyBV:Destroy() end
-            end
-        end
-    end
-end
-
--- ========================================== --
--- SENSOR PINTAR
+-- SENSOR BLOK & BEDROCK
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -129,27 +99,6 @@ local function GetFilterObjects()
     if workspace:FindFirstChild("DroppedItems") then table.insert(filter, workspace.DroppedItems) end
     if workspace:FindFirstChild("Items") then table.insert(filter, workspace.Items) end
     return filter
-end
-
-local function IsObstacle(gridX, gridY)
-    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-    local startZ = Hitbox and Hitbox.Position.Z or 0
-    local checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, startZ)
-    
-    local params = OverlapParams.new()
-    params.FilterDescendantsInstances = GetFilterObjects()
-    params.FilterType = Enum.RaycastFilterType.Exclude
-
-    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
-    for _, part in ipairs(parts) do
-        if part:IsA("BasePart") then
-            local pName = string.lower(part.Name)
-            if string.find(pName, "door") or string.find(pName, "portal") or string.find(pName, "entrance") or string.find(pName, "spawn") or string.find(pName, "bedrock") or string.find(pName, "border") or string.find(pName, "locked") or string.find(pName, "unbreakable") then
-                return true
-            end
-        end
-    end
-    return false
 end
 
 local function IsBedrock(gridX, gridY)
@@ -163,7 +112,7 @@ local function IsBedrock(gridX, gridY)
 
     local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
     for _, part in ipairs(parts) do
-        if part:IsA("BasePart") and string.find(string.lower(part.Name), "bedrock") then
+        if part:IsA("BasePart") and string.match(string.lower(part.Name), "bedrock") then
             return true
         end
     end
@@ -188,36 +137,47 @@ local function NeedsBreaking(gridX, gridY)
             if string.find(pName, "door") or string.find(pName, "portal") or string.find(pName, "border") or string.find(pName, "spawn") then
                 continue
             end
-            return true -- True selama MASIH ADA block atau background
+            -- Selama sensor menyentuh Dirt atau Background, akan return true
+            return true 
         end
     end
     return false
 end
 
 -- ========================================== --
--- FUNGSI KUNCI POSISI (GLIDE)
+-- FUNGSI KUNCI POSISI (GLIDE MURNI)
 -- ========================================== --
-local function SetGlidePosition(gX, gY)
+local function SetGlideMode(active)
+    local Char = LP.Character
+    local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
+    if HRP then HRP.Anchored = active end
+    
+    for _, part in pairs(Char:GetChildren()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = not active
+        end
+    end
+end
+
+local function GlideTo(gX, gY)
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
     local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-    if not Hitbox then return end
+    if not Hitbox or not HRP then return end
 
     local startZ = Hitbox.Position.Z
-    local newPos = Vector3.new(gX * getgenv().GridSize, gY * getgenv().GridSize, startZ)
+    local newCFrame = CFrame.new(gX * getgenv().GridSize, gY * getgenv().GridSize, startZ)
     
-    if Hitbox then 
-        Hitbox.CFrame = CFrame.new(newPos)
-        Hitbox.Velocity = Vector3.zero 
-    end
-    if HRP then 
-        HRP.CFrame = CFrame.new(newPos)
-        HRP.Velocity = Vector3.zero 
-    end
-    if PlayerMovement then pcall(function() PlayerMovement.Position = newPos end) end
+    Hitbox.CFrame = newCFrame
+    Hitbox.Velocity = Vector3.zero 
+    
+    HRP.CFrame = newCFrame
+    HRP.Velocity = Vector3.zero 
+    
+    if PlayerMovement then pcall(function() PlayerMovement.Position = newCFrame.Position end) end
 end
 
 -- ========================================== --
--- LOGIKA ZIG-ZAG UTAMA 
+-- LOGIKA UTAMA (ZIG-ZAG)
 -- ========================================== --
 local isRunning = false
 
@@ -227,24 +187,10 @@ task.spawn(function()
             isRunning = true
             local arahKanan = true 
 
-            ToggleCXFly(true)
+            -- Aktifkan mode Glide (Karakter melayang, tidak nyangkut)
+            SetGlideMode(true)
 
-            local highestTargetY = getgenv().AC_StartY
-            for scanY = getgenv().AC_StartY, getgenv().AC_EndY, -1 do
-                local foundBlock = false
-                for scanX = getgenv().AC_StartX, getgenv().AC_EndX do
-                    if NeedsBreaking(scanX, scanY - 1) then
-                        foundBlock = true
-                        break
-                    end
-                end
-                if foundBlock then
-                    highestTargetY = scanY
-                    break
-                end
-            end
-
-            for currentY = highestTargetY, getgenv().AC_EndY, -1 do
+            for currentY = getgenv().AC_StartY, getgenv().AC_EndY, -1 do
                 if not getgenv().AutoClearEnabled then break end 
                 local blockTargetY = currentY - 1 
                 
@@ -254,44 +200,41 @@ task.spawn(function()
                 for currentX = startX, endX, stepX do
                     if not getgenv().AutoClearEnabled then break end
                     
+                    -- Kalau kosong, otomatis skip
                     if not NeedsBreaking(currentX, blockTargetY) then continue end
                     
+                    -- DETEKSI BEDROCK AWAL: Langsung skip tanpa disentuh
                     if IsBedrock(currentX, blockTargetY) then
                         getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                         continue 
                     end
 
+                    -- Posisi Hover: Melayang 1 grid di atas blok target
                     local hoverY = blockTargetY + 1
-                    local maxUp = 0
-                    while IsObstacle(currentX, hoverY) and maxUp < 5 do
-                        hoverY = hoverY + 1
-                        maxUp = maxUp + 1
-                    end
-                    
-                    SetGlidePosition(currentX, hoverY)
+                    GlideTo(currentX, hoverY)
                     task.wait(getgenv().StepDelay) 
                     
-                    local extremeFailsafe = 0
-
+                    -- ========================================== --
+                    -- STRICT BREAK LOOP (TIDAK AKAN GESER SEBELUM HANCUR TOTAL)
+                    -- ========================================== --
                     repeat
                         if not getgenv().AutoClearEnabled then break end
                         
-                        SetGlidePosition(currentX, hoverY)
+                        -- Pastikan CFrame tetap terkunci di atas target
+                        GlideTo(currentX, hoverY)
+                        
+                        -- Pukul
                         RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                         task.wait(getgenv().BreakDelay)
                         
+                        -- Cek darurat kalau di balik dirt ternyata bedrock
                         if IsBedrock(currentX, blockTargetY) then
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                             break
                         end
 
-                        extremeFailsafe = extremeFailsafe + 1
-                        if extremeFailsafe > 200 then
-                            getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
-                            break
-                        end
-
                     until not NeedsBreaking(currentX, blockTargetY) 
+                    -- LOOP BERHENTI KETIKA DIRT & BACKGROUND SUDAH BENAR-BENAR HILANG
                 end
                 
                 arahKanan = not arahKanan 
@@ -300,7 +243,8 @@ task.spawn(function()
             isRunning = false
             if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
             
-            ToggleCXFly(false)
+            -- Kembalikan karakter ke mode normal
+            SetGlideMode(false)
         end
     end
 end)
