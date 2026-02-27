@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE V30 (ULTRA SPEED & SMART BYPASS) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE V31 (ABSOLUT ANCHOR & U-BYPASS) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v30 - Final Speed" 
+getgenv().ScriptVersion = "AutoClear v31 - Flawless Logic" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -14,8 +14,8 @@ getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
-getgenv().BreakDelay = 0.02   -- Sangat cepat!
-getgenv().MaxHitFailsafe = 30 -- Failsafe dinaikkan karena delay sangat cepat
+getgenv().BreakDelay = 0.01   -- Kecepatan maksimal (Insta-Break)
+getgenv().MaxHitFailsafe = 30 -- Cadangan pukulan jika server lag
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 -- ========================================== --
@@ -54,36 +54,28 @@ CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- FUNGSI TERBANG CX (ANTI GETAR & STAY DI ATAS)
+-- KUNCI FISIKA ABSOLUT (ANTI GLITCH)
 -- ========================================== --
-local function ToggleCXFly(state)
+local function ToggleAbsoluteAnchor(state)
     local Char = LP.Character
-    local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
     local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
+    local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
 
     if Hum then Hum.PlatformStand = state end
 
-    local parts = {HRP, Hitbox}
-    for _, part in ipairs(parts) do
-        if part then
-            if state then
-                part.CanCollide = false 
-                local bv = part:FindFirstChild("ZON_FlyBV") or Instance.new("BodyVelocity")
-                bv.Name = "ZON_FlyBV"
-                bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-                bv.Velocity = Vector3.zero 
-                bv.Parent = part
-            else
-                part.CanCollide = true
-                if part:FindFirstChild("ZON_FlyBV") then part.ZON_FlyBV:Destroy() end
-            end
-        end
+    if Hitbox then
+        Hitbox.Anchored = state
+        Hitbox.CanCollide = not state
+    end
+    if HRP then
+        HRP.Anchored = state
+        HRP.CanCollide = not state
     end
 end
 
 -- ========================================== --
--- FUNGSI SCAN PINTAR
+-- SENSOR RADAR CERDAS
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -102,9 +94,13 @@ local function IsObstacle(gridX, gridY)
     params.FilterDescendantsInstances = GetFilterObjects()
     params.FilterType = Enum.RaycastFilterType.Exclude
 
-    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
+    -- Box dikecilkan sedikit (3.5 dari 4.5) agar tidak tersangkut tepi tembok
+    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3.5, 3.5, 50), params)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then
+            -- Jika part padat (solid), otomatis jadi rintangan
+            if part.CanCollide then return true end
+            
             local pName = string.lower(part.Name)
             if string.find(pName, "door") or string.find(pName, "portal") or string.find(pName, "entrance") or string.find(pName, "spawn") or string.find(pName, "bedrock") or string.find(pName, "border") then
                 return true
@@ -126,7 +122,7 @@ local function NeedsBreaking(gridX, gridY)
     params.FilterDescendantsInstances = GetFilterObjects()
     params.FilterType = Enum.RaycastFilterType.Exclude
 
-    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
+    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3.5, 3.5, 50), params)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then return true end
     end
@@ -134,7 +130,7 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- FUNGSI TWEEN MULUS (ANTI NYANGKUT LOGIC)
+-- SISTEM TWEEN MULUS & BYPASS MELAMBUNG
 -- ========================================== --
 local function SmoothGlideTo(targetPos)
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
@@ -144,8 +140,8 @@ local function SmoothGlideTo(targetPos)
     local dist = (Hitbox.Position - targetPos).Magnitude
     if dist < 0.1 then return end
     
-    -- Kecepatan kilat menyesuaikan jarak
-    local tweenTime = math.max(0.05, (dist / getgenv().GridSize) * 0.02)
+    -- Bergerak secepat kilat (0.03 detik per kotak)
+    local tweenTime = math.max(0.05, (dist / getgenv().GridSize) * 0.03)
     local ti = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear)
     local tween = TS:Create(Hitbox, ti, {CFrame = CFrame.new(targetPos)})
     
@@ -155,11 +151,13 @@ local function SmoothGlideTo(targetPos)
         task.spawn(function()
             while tween.PlaybackState == Enum.PlaybackState.Playing do
                 pcall(function() PlayerMovement.Position = Hitbox.Position end)
-                task.wait(0.02)
+                task.wait(0.01)
             end
         end)
     end
     tween.Completed:Wait()
+    
+    -- Sinkronisasi posisi karakter
     if HRP then HRP.CFrame = CFrame.new(targetPos) end
 end
 
@@ -174,8 +172,6 @@ local function SmartWalkTo(tX, tY)
     if currentX == tX and currentY == tY then return end
 
     local targetPos = Vector3.new(tX * getgenv().GridSize, tY * getgenv().GridSize, startZ)
-
-    -- Cek lurus (Apakah ada Bedrock/Pintu di tengah jalan)
     local pathClear = true
     local stepX = (tX > currentX) and 1 or (tX < currentX and -1 or 0)
     
@@ -188,19 +184,35 @@ local function SmartWalkTo(tX, tY)
     end
 
     if pathClear then
-        -- Aman, glide lurus seketika!
         SmoothGlideTo(targetPos)
     else
-        -- RINTANGAN DETECTED: Jalankan Logika Melambung (Naik 2 blok -> Lewati atasnya -> Turun)
-        local safeY = math.max(currentY, tY) + 2
-        SmoothGlideTo(Vector3.new(currentX * getgenv().GridSize, safeY * getgenv().GridSize, startZ)) -- Naik
-        SmoothGlideTo(Vector3.new(tX * getgenv().GridSize, safeY * getgenv().GridSize, startZ))       -- Geser Atas
-        SmoothGlideTo(targetPos)                                                                      -- Turun
+        -- DETEKSI RINTANGAN: Temukan jalur aman melambung ke atas
+        local safeY = math.max(currentY, tY)
+        local foundSafePath = false
+        
+        for attemptY = safeY + 1, safeY + 15 do
+            local isClear = true
+            for checkX = currentX, tX, stepX == 0 and 1 or stepX do
+                if IsObstacle(checkX, attemptY) then
+                    isClear = false; break
+                end
+            end
+            if isClear then
+                safeY = attemptY
+                foundSafePath = true
+                break
+            end
+        end
+        
+        -- Eksekusi Manuver Huruf U Terbalik (Naik -> Lewati -> Turun)
+        SmoothGlideTo(Vector3.new(currentX * getgenv().GridSize, safeY * getgenv().GridSize, startZ)) 
+        SmoothGlideTo(Vector3.new(tX * getgenv().GridSize, safeY * getgenv().GridSize, startZ))       
+        SmoothGlideTo(targetPos)                                                                      
     end
 end
 
 -- ========================================== --
--- LOGIKA ZIG-ZAG DINAMIS & INSTANT NEXT
+-- LOGIKA ZIG-ZAG DINAMIS & INSTA-BREAK
 -- ========================================== --
 local isRunning = false
 
@@ -210,7 +222,7 @@ task.spawn(function()
             isRunning = true
             local arahKanan = true 
 
-            ToggleCXFly(true)
+            ToggleAbsoluteAnchor(true)
 
             local highestTargetY = getgenv().AC_StartY
             for scanY = getgenv().AC_StartY, getgenv().AC_EndY, -1 do
@@ -249,8 +261,7 @@ task.spawn(function()
                         local tries = 0
                         while tries < getgenv().MaxHitFailsafe do
                             if not getgenv().AutoClearEnabled then break end
-                            
-                            -- SEKETIKA BERHENTI MUKUL SAAT HANCUR
+                            -- BERHENTI SEKETIKA BEGITU HANCUR (Zero Delay)
                             if not NeedsBreaking(currentX, blockTargetY) then break end 
                             
                             RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
@@ -261,15 +272,15 @@ task.spawn(function()
                         if tries >= getgenv().MaxHitFailsafe then
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                         end
-                        -- TIDAK ADA JEDA MOVE LAGI DISINI, LANGSUNG LOMPAT KE BLOCK SELANJUTNYA
                     else
                         -- =====================================
                         -- OPSI B: HANCURKAN DARI ATAS (BYPASS)
                         -- =====================================
                         local attackY = blockTargetY + 1
-                        -- Pastikan kita tidak berdiri menabrak pintu/portal saat mukul ke bawah
+                        -- Jika di atas block ada pintu, naik sedikit lagi sampai aman
                         while IsObstacle(currentX, attackY) do 
                             attackY = attackY + 1 
+                            if attackY > blockTargetY + 15 then break end
                         end
                         
                         SmartWalkTo(currentX, attackY)
@@ -277,8 +288,7 @@ task.spawn(function()
                         local tries = 0
                         while tries < getgenv().MaxHitFailsafe do
                             if not getgenv().AutoClearEnabled then break end
-                            
-                            -- SEKETIKA BERHENTI MUKUL SAAT HANCUR
+                            -- BERHENTI SEKETIKA BEGITU HANCUR (Zero Delay)
                             if not NeedsBreaking(currentX, blockTargetY) then break end 
                             
                             RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
@@ -297,7 +307,7 @@ task.spawn(function()
             
             isRunning = false
             if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
-            ToggleCXFly(false)
+            ToggleAbsoluteAnchor(false)
         end
     end
 end)
