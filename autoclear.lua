@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE V29 (SMART SIDE-BREAK LOGIC) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE V30 (ULTRA SPEED & SMART BYPASS) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v29 - Side Sweep" 
+getgenv().ScriptVersion = "AutoClear v30 - Final Speed" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -14,10 +14,8 @@ getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
-getgenv().BreakDelay = 0.05  
-getgenv().StepDelay = 0.1    
-getgenv().MoveDelay = 0.15    
-getgenv().MaxHitFailsafe = 20 
+getgenv().BreakDelay = 0.02   -- Sangat cepat!
+getgenv().MaxHitFailsafe = 30 -- Failsafe dinaikkan karena delay sangat cepat
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 -- ========================================== --
@@ -25,6 +23,7 @@ getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 local Players = game:GetService("Players")
 local LP = Players.LocalPlayer
 local RS = game:GetService("ReplicatedStorage")
+local TS = game:GetService("TweenService")
 local UIS = game:GetService("UserInputService")
 local VirtualUser = game:GetService("VirtualUser") 
 
@@ -84,7 +83,7 @@ local function ToggleCXFly(state)
 end
 
 -- ========================================== --
--- FUNGSI SCAN PINTAR (DETEKSI PINTU & BEDROCK)
+-- FUNGSI SCAN PINTAR
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -135,52 +134,73 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- FUNGSI JALAN PINTAR (AUTO-PARKOUR PINTU)
+-- FUNGSI TWEEN MULUS (ANTI NYANGKUT LOGIC)
 -- ========================================== --
-local function WalkToGrid(tX, tY)
+local function SmoothGlideTo(targetPos)
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
     local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
     if not Hitbox then return end
 
+    local dist = (Hitbox.Position - targetPos).Magnitude
+    if dist < 0.1 then return end
+    
+    -- Kecepatan kilat menyesuaikan jarak
+    local tweenTime = math.max(0.05, (dist / getgenv().GridSize) * 0.02)
+    local ti = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear)
+    local tween = TS:Create(Hitbox, ti, {CFrame = CFrame.new(targetPos)})
+    
+    tween:Play()
+    
+    if PlayerMovement then
+        task.spawn(function()
+            while tween.PlaybackState == Enum.PlaybackState.Playing do
+                pcall(function() PlayerMovement.Position = Hitbox.Position end)
+                task.wait(0.02)
+            end
+        end)
+    end
+    tween.Completed:Wait()
+    if HRP then HRP.CFrame = CFrame.new(targetPos) end
+end
+
+local function SmartWalkTo(tX, tY)
+    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
+    if not Hitbox then return end
+    
     local startZ = Hitbox.Position.Z
     local currentX = math.floor(Hitbox.Position.X / getgenv().GridSize + 0.5)
     local currentY = math.floor(Hitbox.Position.Y / getgenv().GridSize + 0.5)
 
-    while (currentX ~= tX or currentY ~= tY) do
-        if not getgenv().AutoClearEnabled then break end
-        
-        local nextX = currentX
-        local nextY = currentY
+    if currentX == tX and currentY == tY then return end
 
-        if currentX ~= tX then 
-            local stepDir = (tX > currentX) and 1 or -1
-            if IsObstacle(currentX + stepDir, currentY) then
-                nextY = currentY + 1
-            else
-                nextX = currentX + stepDir
+    local targetPos = Vector3.new(tX * getgenv().GridSize, tY * getgenv().GridSize, startZ)
+
+    -- Cek lurus (Apakah ada Bedrock/Pintu di tengah jalan)
+    local pathClear = true
+    local stepX = (tX > currentX) and 1 or (tX < currentX and -1 or 0)
+    
+    if stepX ~= 0 then
+        for checkX = currentX, tX, stepX do
+            if IsObstacle(checkX, currentY) or IsObstacle(checkX, tY) then
+                pathClear = false; break
             end
-        elseif currentY < tY then 
-            nextY = currentY + 1
-        elseif currentY > tY then 
-            if IsObstacle(currentX, currentY - 1) then break end
-            nextY = currentY - 1 
         end
-        
-        currentX = nextX
-        currentY = nextY
-        
-        local newPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
-        
-        if Hitbox then Hitbox.CFrame = CFrame.new(newPos); Hitbox.Velocity = Vector3.zero end
-        if HRP then HRP.CFrame = CFrame.new(newPos); HRP.Velocity = Vector3.zero end
-        if PlayerMovement then pcall(function() PlayerMovement.Position = newPos end) end
-        
-        task.wait(getgenv().StepDelay)
+    end
+
+    if pathClear then
+        -- Aman, glide lurus seketika!
+        SmoothGlideTo(targetPos)
+    else
+        -- RINTANGAN DETECTED: Jalankan Logika Melambung (Naik 2 blok -> Lewati atasnya -> Turun)
+        local safeY = math.max(currentY, tY) + 2
+        SmoothGlideTo(Vector3.new(currentX * getgenv().GridSize, safeY * getgenv().GridSize, startZ)) -- Naik
+        SmoothGlideTo(Vector3.new(tX * getgenv().GridSize, safeY * getgenv().GridSize, startZ))       -- Geser Atas
+        SmoothGlideTo(targetPos)                                                                      -- Turun
     end
 end
 
 -- ========================================== --
--- LOGIKA ZIG-ZAG DINAMIS (ATAS -> SAMPING)
+-- LOGIKA ZIG-ZAG DINAMIS & INSTANT NEXT
 -- ========================================== --
 local isRunning = false
 
@@ -215,24 +235,24 @@ task.spawn(function()
                     
                     if not NeedsBreaking(currentX, blockTargetY) then continue end
                     
-                    -- Kalkulasi titik serang (Samping vs Atas)
                     local sideX = currentX - stepX
                     local sideY = blockTargetY
                     
-                    -- Cek apakah kita bisa berdiri di samping block
-                    -- (Syarat: bukan obstacle pintu/bedrock, dan bukan block yang belum dihancurkan)
                     local canSideBreak = (not IsObstacle(sideX, sideY)) and (not NeedsBreaking(sideX, sideY))
                     
                     if canSideBreak then
                         -- =====================================
                         -- OPSI A: HANCURKAN DARI SAMPING
                         -- =====================================
-                        WalkToGrid(sideX, sideY)
-                        task.wait(getgenv().MoveDelay) 
+                        SmartWalkTo(sideX, sideY)
                         
                         local tries = 0
                         while tries < getgenv().MaxHitFailsafe do
-                            if not getgenv().AutoClearEnabled or not NeedsBreaking(currentX, blockTargetY) then break end
+                            if not getgenv().AutoClearEnabled then break end
+                            
+                            -- SEKETIKA BERHENTI MUKUL SAAT HANCUR
+                            if not NeedsBreaking(currentX, blockTargetY) then break end 
+                            
                             RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                             task.wait(getgenv().BreakDelay)
                             tries = tries + 1
@@ -240,21 +260,27 @@ task.spawn(function()
                         
                         if tries >= getgenv().MaxHitFailsafe then
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
-                        else
-                            -- Maju menempati block yang baru hancur
-                            WalkToGrid(currentX, blockTargetY)
                         end
+                        -- TIDAK ADA JEDA MOVE LAGI DISINI, LANGSUNG LOMPAT KE BLOCK SELANJUTNYA
                     else
                         -- =====================================
-                        -- OPSI B: HANCURKAN DARI ATAS 
-                        -- (Dipakai di block pertama / terhalang)
+                        -- OPSI B: HANCURKAN DARI ATAS (BYPASS)
                         -- =====================================
-                        WalkToGrid(currentX, currentY) -- currentY ada di atas blockTargetY
-                        task.wait(getgenv().MoveDelay) 
+                        local attackY = blockTargetY + 1
+                        -- Pastikan kita tidak berdiri menabrak pintu/portal saat mukul ke bawah
+                        while IsObstacle(currentX, attackY) do 
+                            attackY = attackY + 1 
+                        end
+                        
+                        SmartWalkTo(currentX, attackY)
                         
                         local tries = 0
                         while tries < getgenv().MaxHitFailsafe do
-                            if not getgenv().AutoClearEnabled or not NeedsBreaking(currentX, blockTargetY) then break end
+                            if not getgenv().AutoClearEnabled then break end
+                            
+                            -- SEKETIKA BERHENTI MUKUL SAAT HANCUR
+                            if not NeedsBreaking(currentX, blockTargetY) then break end 
+                            
                             RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                             task.wait(getgenv().BreakDelay)
                             tries = tries + 1
@@ -262,9 +288,6 @@ task.spawn(function()
                         
                         if tries >= getgenv().MaxHitFailsafe then
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
-                        else
-                            -- Turun ke lubang yang baru dibuat
-                            WalkToGrid(currentX, blockTargetY)
                         end
                     end
                 end
