@@ -1,9 +1,9 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (V45 SMOOTH GLIDE & INTEGRATED UI) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (V46 REAL PHYSICS GLIDE) ]] --
 
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v45 - Smooth Glide & Strict Break" 
+getgenv().ScriptVersion = "AutoClear v46 - Real Glide & Strict Break" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL
@@ -16,7 +16,7 @@ getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.03  
-getgenv().GlideSpeed = 25    -- KECEPATAN GLIDE (Semakin kecil semakin lambat, semakin besar semakin cepat)
+getgenv().GlideSpeed = 20    -- Semakin kecil makin lambat, makin besar makin cepat
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 
@@ -26,7 +26,6 @@ local LP = Players.LocalPlayer
 local RS = game:GetService("ReplicatedStorage")
 local UIS = game:GetService("UserInputService")
 local VirtualUser = game:GetService("VirtualUser") 
-local TS = game:GetService("TweenService") -- Digunakan untuk pergerakan mulus
 
 -- Anti AFK
 LP.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
@@ -38,7 +37,7 @@ local Remotes = RS:WaitForChild("Remotes")
 local RemoteBreak = Remotes:WaitForChild("PlayerFist")
 
 -- ========================================== --
--- FUNGSI UI UTILITY (KEMBALI KE ASAL)
+-- FUNGSI UI UTILITY
 -- ========================================== --
 local Theme = { Item = Color3.fromRGB(45, 45, 45), Text = Color3.fromRGB(255, 255, 255), Purple = Color3.fromRGB(140, 80, 255) }
 
@@ -105,57 +104,69 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- SISTEM GLIDE MULUS (ANTI TELEPORT)
+-- SISTEM TERBANG FISIK (ANTI VISUAL BUG)
 -- ========================================== --
-local function SetGlideMode(active)
+local function TogglePhysicsFly(state)
     local Char = LP.Character
     local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
+    local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-    
-    if HRP then HRP.Anchored = active end
-    if Hitbox then Hitbox.Anchored = active end
-    
-    if Char then
-        for _, part in pairs(Char:GetChildren()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = not active
+
+    if Hum then Hum.PlatformStand = state end -- Bikin karakter rebah/melayang
+
+    local parts = {HRP, Hitbox}
+    for _, part in ipairs(parts) do
+        if part then
+            -- PASTIKAN ANCHORED FALSE AGAR SERVER MENDETEKSI PERGERAKAN
+            part.Anchored = false 
+            
+            if state then
+                part.CanCollide = false 
+                -- Gunakan BodyVelocity untuk menahan karakter di udara
+                local bv = part:FindFirstChild("ZON_FlyBV") or Instance.new("BodyVelocity")
+                bv.Name = "ZON_FlyBV"
+                bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+                bv.Velocity = Vector3.zero 
+                bv.Parent = part
+            else
+                part.CanCollide = true
+                if part:FindFirstChild("ZON_FlyBV") then part.ZON_FlyBV:Destroy() end
             end
         end
     end
 end
 
-local function SmoothGlideTo(gX, gY)
+-- Fungsi jalan mulus yang direkam server (tanpa teleport / tween visual)
+local function RealSmoothGlideTo(gX, gY)
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
     local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
     if not Hitbox or not HRP then return end
 
     local startZ = Hitbox.Position.Z
-    local targetCFrame = CFrame.new(gX * getgenv().GridSize, gY * getgenv().GridSize, startZ)
+    local targetPos = Vector3.new(gX * getgenv().GridSize, gY * getgenv().GridSize, startZ)
+    local startPos = Hitbox.Position
     
-    -- Hitung jarak untuk menentukan durasi meluncur (supaya konstan)
-    local distance = (Hitbox.Position - targetCFrame.Position).Magnitude
-    local tweenTime = distance / getgenv().GlideSpeed
-    if tweenTime < 0.05 then tweenTime = 0.05 end -- Minimal durasi
-
-    local tweenInfo = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear)
+    local distance = (startPos - targetPos).Magnitude
+    local speed = getgenv().GlideSpeed or 20
     
-    -- Mainkan animasi bergeser mulus
-    local tweenHitbox = TS:Create(Hitbox, tweenInfo, {CFrame = targetCFrame})
-    local tweenHRP = TS:Create(HRP, tweenInfo, {CFrame = targetCFrame})
+    -- Hitung jumlah langkah (frame) berdasarkan jarak
+    local steps = math.floor(distance * (60 / speed))
+    if steps < 1 then steps = 1 end
     
-    tweenHitbox:Play()
-    tweenHRP:Play()
-    
-    -- Tunggu sampai karakternya sampai di titik tujuan
-    task.wait(tweenTime)
-    
-    -- Kunci paksa di titik akhir agar tidak meleset
-    Hitbox.CFrame = targetCFrame
-    Hitbox.Velocity = Vector3.zero
-    HRP.CFrame = targetCFrame
-    HRP.Velocity = Vector3.zero
-    
-    if PlayerMovement then pcall(function() PlayerMovement.Position = targetCFrame.Position end) end
+    -- Geser posisi sedikit demi sedikit agar server memprosesnya sebagai "jalan"
+    for i = 1, steps do
+        if not getgenv().AutoClearEnabled then break end
+        
+        local alpha = i / steps
+        local currentPos = startPos:Lerp(targetPos, alpha)
+        local newCFrame = CFrame.new(currentPos)
+        
+        if Hitbox then Hitbox.CFrame = newCFrame; Hitbox.Velocity = Vector3.zero end
+        if HRP then HRP.CFrame = newCFrame; HRP.Velocity = Vector3.zero end
+        if PlayerMovement then pcall(function() PlayerMovement.Position = currentPos end) end
+        
+        task.wait() -- Jeda 1 frame
+    end
 end
 
 -- ========================================== --
@@ -169,8 +180,8 @@ task.spawn(function()
             isRunning = true
             local arahKanan = true 
 
-            -- Kunci karakter di udara
-            SetGlideMode(true)
+            -- Aktifkan sistem terbang fisik
+            TogglePhysicsFly(true)
 
             local highestTargetY = getgenv().AC_StartY
             for scanY = getgenv().AC_StartY, getgenv().AC_EndY, -1 do
@@ -199,16 +210,14 @@ task.spawn(function()
                     
                     if not NeedsBreaking(currentX, blockTargetY) then continue end
                     
-                    -- JIKA BEDROCK: Blacklist lalu script akan *continue*, 
-                    -- sehingga karakter akan mulus meluncur melewatinya ke blok selanjutnya
                     if IsBedrock(currentX, blockTargetY) then
                         getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                         continue 
                     end
 
-                    -- MELUNCUR MULUS KE ATAS BLOK TARGET (HOVER)
+                    -- GLIDE FISIK KE ATAS BLOK TARGET
                     local hoverY = blockTargetY + 1
-                    SmoothGlideTo(currentX, hoverY)
+                    RealSmoothGlideTo(currentX, hoverY)
                     
                     local extremeFailsafe = 0
 
@@ -218,11 +227,9 @@ task.spawn(function()
                     repeat
                         if not getgenv().AutoClearEnabled then break end
                         
-                        -- Pukul block di bawah kita
                         RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                         task.wait(getgenv().BreakDelay)
                         
-                        -- Cek darurat
                         if IsBedrock(currentX, blockTargetY) then
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                             break
@@ -235,7 +242,6 @@ task.spawn(function()
                         end
 
                     until not NeedsBreaking(currentX, blockTargetY) 
-                    -- LOOP INI MENAHAN KARAKTER AGAR TIDAK GESER SEBELUM BACKGROUND HANCUR
                 end
                 
                 arahKanan = not arahKanan 
@@ -244,8 +250,8 @@ task.spawn(function()
             isRunning = false
             if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
             
-            -- Lepas kunci
-            SetGlideMode(false)
+            -- Kembalikan gravitasi normal
+            TogglePhysicsFly(false)
         end
     end
 end)
