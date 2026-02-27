@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE V34 (SAFE WALK & NATURAL BREAK) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE V35 (SAFE WALK & INSTA-NEXT) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v34 - Safe Walk" 
+getgenv().ScriptVersion = "AutoClear v35 - Insta Next" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -14,9 +14,9 @@ getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
-getgenv().BreakDelay = 0.05   -- Jeda aman memukul (Sama dengan Pabrik)
-getgenv().StepDelay = 0.15    -- Berjalan perlahan per block agar server sinkron
-getgenv().MaxHitFailsafe = 30 
+getgenv().BreakDelay = 0.01   -- Kecepatan Pukul Maksimal (Kilat)
+getgenv().StepDelay = 0.06    -- Transisi Jalan Dipercepat
+getgenv().MaxHitFailsafe = 50 -- 50 tries * 0.01s = 0.5 detik (Batas maksimal nunggu jika lag ping)
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 -- ========================================== --
@@ -97,7 +97,7 @@ local function NeedsBreaking(gridX, gridY)
     params.FilterDescendantsInstances = GetFilterObjects()
     params.FilterType = Enum.RaycastFilterType.Exclude
 
-    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
+    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3.5, 3.5, 50), params)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then return true end
     end
@@ -140,7 +140,6 @@ local function WalkToGrid(tX, tY)
         
         local newPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
         
-        -- Pindah perlahan persis seperti Pabrik.lua
         Hitbox.CFrame = CFrame.new(newPos)
         if PlayerMovement then pcall(function() PlayerMovement.Position = newPos end) end
         
@@ -188,19 +187,15 @@ task.spawn(function()
                     local canSideBreak = (not IsObstacle(sideX, sideY)) and (not NeedsBreaking(sideX, sideY))
                     
                     if canSideBreak then
-                        -- =====================================
-                        -- OPSI A: HANCURKAN DARI SAMPING
-                        -- =====================================
                         WalkToGrid(sideX, sideY)
                         
                         local tries = 0
                         while tries < getgenv().MaxHitFailsafe do
                             if not getgenv().AutoClearEnabled then break end
                             
-                            -- Berhenti seketika begitu hancur
+                            -- Berhenti SECEPAT KILAT begitu block hancur
                             if not NeedsBreaking(currentX, blockTargetY) then break end 
 
-                            -- HANYA mengirim perintah pukul, tidak mengutak-atik posisi CFrame
                             RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                             task.wait(getgenv().BreakDelay)
                             tries = tries + 1
@@ -210,9 +205,6 @@ task.spawn(function()
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                         end
                     else
-                        -- =====================================
-                        -- OPSI B: HANCURKAN DARI ATAS (BYPASS)
-                        -- =====================================
                         local attackY = currentY
                         while IsObstacle(currentX, attackY) do 
                             attackY = attackY + 1 
@@ -225,10 +217,9 @@ task.spawn(function()
                         while tries < getgenv().MaxHitFailsafe do
                             if not getgenv().AutoClearEnabled then break end
                             
-                            -- Berhenti seketika begitu hancur
+                            -- Berhenti SECEPAT KILAT begitu block hancur
                             if not NeedsBreaking(currentX, blockTargetY) then break end 
 
-                            -- HANYA mengirim perintah pukul, tidak mengutak-atik posisi CFrame
                             RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                             task.wait(getgenv().BreakDelay)
                             tries = tries + 1
