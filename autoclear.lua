@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (PABRIK MOVEMENT + V28 JUMP LOGIC) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (LOCKED START & HYPER-NEXT + JUMP) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v41 - Fast Snappy & Smart Jump" 
+getgenv().ScriptVersion = "AutoClear v42 - The True Final Fix" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -14,9 +14,8 @@ getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
-getgenv().BreakDelay = 0.03       -- Sabar dikit agar background pecah
-getgenv().NormalStepDelay = 0.1   -- [LOGIKA 1] Jalan per-grid persis script Pabrik (Pas awal & pindah baris)
-getgenv().FastStepDelay = 0       -- [LOGIKA 2] Kecepatan KILAT / INSTAN (Pas pindah ke blok sebelahnya)
+getgenv().BreakDelay = 0.03       -- Kecepatan pukul agar background hancur
+getgenv().NormalStepDelay = 0.15  -- [LOGIKA 1] Jalan Start yang sudah terbukti AMAN
 getgenv().MaxHitFailsafe = 100 
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
@@ -91,7 +90,6 @@ local function GetFilterObjects()
     return filter
 end
 
--- MENDETEKSI BEDROCK DAN PINTU
 local function IsSolidObstacle(gridX, gridY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
@@ -137,7 +135,7 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- JALAN PER-GRID PABRIK + LOGIKA LOMPAT V28
+-- PERGERAKAN DENGAN LOGIKA LOMPAT (V28) + MESIN 2-FRAME
 -- ========================================== --
 local function WalkToGrid(tX, tY, isFast)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
@@ -147,21 +145,19 @@ local function WalkToGrid(tX, tY, isFast)
     local startZ = MyHitbox.Position.Z
     local currentX = math.floor(MyHitbox.Position.X / getgenv().GridSize + 0.5)
     local currentY = math.floor(MyHitbox.Position.Y / getgenv().GridSize + 0.5)
-    
-    local stuckCounter = 0
 
+    local stuckCounter = 0
     while (currentX ~= tX or currentY ~= tY) do
         if not getgenv().AutoClearEnabled then break end
         
         local nextX = currentX
         local nextY = currentY
 
-        -- [KEMBALI KE LOGIKA LOMPAT V28] --
+        -- [ LOGIKA LOMPAT V28 YANG BIKIN PINTAR ]
         if currentX ~= tX then 
             local stepDir = (tX > currentX) and 1 or -1
-            -- JIKA DEPAN ADA PINTU/BEDROCK, TERBANG NAIK 1 BLOCK DULU
             if IsSolidObstacle(currentX + stepDir, currentY) then
-                nextY = currentY + 1
+                nextY = currentY + 1 -- Lompat naik jika di depan ada Pintu / Bedrock
             else
                 nextX = currentX + stepDir
             end
@@ -172,7 +168,6 @@ local function WalkToGrid(tX, tY, isFast)
             nextY = currentY - 1 
         end
         
-        -- Anti-stuck loop abadi
         if nextX == currentX and nextY == currentY then
             stuckCounter = stuckCounter + 1
             if stuckCounter > 3 then break end
@@ -183,19 +178,21 @@ local function WalkToGrid(tX, tY, isFast)
         currentX = nextX
         currentY = nextY
         
-        -- Langsung CFrame per grid (seperti script Pabrik, tanpa Lerp animasi)
         local newWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
-        MyHitbox.CFrame = CFrame.new(newWorldPos)
-        MyHitbox.Velocity = Vector3.zero
         
-        if PlayerMovement then pcall(function() PlayerMovement.Position = newWorldPos end) end
-        
-        -- DUAL SPEED LOGIC
-        local delayTime = isFast and getgenv().FastStepDelay or getgenv().NormalStepDelay
-        if delayTime > 0 then
-            task.wait(delayTime)
+        if isFast then
+            -- [ LOGIKA 2 ] NGEBUT (Transisi kilat 2-frame, dijamin tidak blink tapi instan)
+            local startPos = MyHitbox.Position
+            MyHitbox.CFrame = CFrame.new(startPos:Lerp(newWorldPos, 0.5))
+            task.wait() 
+            MyHitbox.CFrame = CFrame.new(newWorldPos)
+            if PlayerMovement then pcall(function() PlayerMovement.Position = newWorldPos end) end
+            task.wait() 
         else
-            task.wait() -- Tunggu seminimal mungkin agar ultra-fast
+            -- [ LOGIKA 1 ] SANTAI (Aman 100% dari anti-cheat saat Start / Pindah Baris Jauh)
+            MyHitbox.CFrame = CFrame.new(newWorldPos)
+            if PlayerMovement then pcall(function() PlayerMovement.Position = newWorldPos end) end
+            task.wait(getgenv().NormalStepDelay)
         end
     end
 end
@@ -242,13 +239,18 @@ task.spawn(function()
                     local standX = currentX - stepX
                     local standY = blockTargetY
 
-                    -- LOGIKA X=0 MENTOK KIRI/KANAN
                     if standX < getgenv().AC_StartX or standX > getgenv().AC_EndX then
                         standX = currentX
                         standY = blockTargetY + 1
+                    else
+                        local maxUp = 0
+                        while IsSolidObstacle(standX, standY) and maxUp < 5 do
+                            standY = standY + 1
+                            maxUp = maxUp + 1
+                        end
                     end
                     
-                    -- JALAN KE TARGET
+                    -- Panggil pergerakan (Santai di awal, Ngebut setelahnya)
                     WalkToGrid(standX, standY, not isFirstBlock)
                     isFirstBlock = false 
                     
@@ -259,10 +261,8 @@ task.spawn(function()
                     local tries = 0
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
-                        
                         if not NeedsBreaking(currentX, blockTargetY) then break end
 
-                        -- Kunci CFrame agar karakter mantap seperti patung saat memukul
                         if MyHitbox and lockCFrame then
                             MyHitbox.CFrame = lockCFrame
                             MyHitbox.Velocity = Vector3.zero
