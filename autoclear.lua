@@ -1,11 +1,11 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (V43 CORE + SMART BEDROCK SENSOR FIX) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (V43 MURNI + SENSOR BEDROCK) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v46 - Absolute Smart Skip" 
+getgenv().ScriptVersion = "AutoClear v43.5 - The True Speed & Sensor" 
 
 -- ========================================== --
--- VARIABEL GLOBAL (MURNI V43)
+-- VARIABEL GLOBAL 
 -- ========================================== --
 getgenv().AutoClearEnabled = false
 getgenv().AC_StartX = 0
@@ -16,10 +16,10 @@ getgenv().AC_EndY = 6
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.03  
 getgenv().StepDelay = 0.1     -- [AMAN] Jeda jalan V28 khusus pas Start awal
-getgenv().MaxHitFailsafe = 100 -- [PENTING] Tetap 100 agar tidak salah mengira Background sebagai Bedrock!
+getgenv().MaxHitFailsafe = 100 -- [DIKEMBALIKAN KE 100] Agar Background pasti hancur dan tidak memicu lompat error!
 
--- DAFTAR NAMA BEDROCK/PINTU (Tambahkan jika ada nama aneh di game-mu)
-local UnbreakableBlocks = {"bedrock", "border", "door", "portal", "spawn", "locked", "unbreakable"}
+-- SENSOR NAMA BLOK KERAS (Tambahkan ke sini jika ada nama bedrock aneh di game)
+getgenv().UnbreakableBlocks = {"bedrock", "border", "door", "portal", "spawn", "locked", "unbreakable"}
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 -- ========================================== --
@@ -83,7 +83,7 @@ local function ToggleCXFly(state)
 end
 
 -- ========================================== --
--- SENSOR PINTAR: HANYA DETEKSI BEDROCK/PINTU
+-- SENSOR PINTAR (HANYA BAGIAN INI YANG DIPERBAIKI)
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -94,6 +94,8 @@ local function GetFilterObjects()
 end
 
 local function IsObstacle(gridX, gridY)
+    if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return true end
+
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
     local startZ = Hitbox and Hitbox.Position.Z or 0
     local checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, startZ)
@@ -106,8 +108,8 @@ local function IsObstacle(gridX, gridY)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then
             local pName = string.lower(part.Name)
-            -- JIKA NAMANYA COCOK DENGAN DAFTAR BEDROCK -> JADIKAN PIJAKAN (LOMPATI)
-            for _, uName in ipairs(UnbreakableBlocks) do
+            -- Sensor mengecek dari daftar nama UnbreakableBlocks di setting Global
+            for _, uName in ipairs(getgenv().UnbreakableBlocks) do
                 if string.find(pName, uName) then return true end
             end
         end
@@ -115,13 +117,8 @@ local function IsObstacle(gridX, gridY)
     return false
 end
 
--- ========================================== --
--- SENSOR BREAK: APAKAH INI DIRT YANG BISA DIHANCURKAN?
--- ========================================== --
 local function NeedsBreaking(gridX, gridY)
     if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return false end
-    
-    -- JIKA INI BEDROCK/PINTU, JANGAN DIHANCURKAN! SKIP LANGSUNG.
     if IsObstacle(gridX, gridY) then return false end
 
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
@@ -140,7 +137,7 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- FUNGSI JALAN MURNI V43 (CEPAT TAPI AMAN SAAT START)
+-- FUNGSI JALAN MURNI V43 (TIDAK ADA YANG DIUBAH)
 -- ========================================== --
 local function WalkToGrid(tX, tY, isFast)
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
@@ -181,17 +178,17 @@ local function WalkToGrid(tX, tY, isFast)
         if HRP then HRP.CFrame = CFrame.new(newPos); HRP.Velocity = Vector3.zero end
         if PlayerMovement then pcall(function() PlayerMovement.Position = newPos end) end
         
-        -- KEPUTUSAN KECEPATAN V43: Cepat pas geser, Lambat pas start
+        -- KEPUTUSAN KECEPATAN: Kalau isFast True, jalan Instan. Kalau False, jalan Santai.
         if isFast then
-            task.wait() 
+            task.wait() -- Tanpa jeda, langsung ngebut!
         else
-            task.wait(getgenv().StepDelay) 
+            task.wait(getgenv().StepDelay) -- Pakai jeda aman V28
         end
     end
 end
 
 -- ========================================== --
--- LOGIKA ZIG-ZAG UTAMA 
+-- LOGIKA ZIG-ZAG UTAMA (MURNI V43)
 -- ========================================== --
 local isRunning = false
 
@@ -225,7 +222,7 @@ task.spawn(function()
                 local startX, endX, stepX = getgenv().AC_StartX, getgenv().AC_EndX, 1
                 if not arahKanan then startX, endX, stepX = getgenv().AC_EndX, getgenv().AC_StartX, -1 end
 
-                local isFirstBlock = true 
+                local isFirstBlock = true -- Penanda blok pertama di baris
 
                 for currentX = startX, endX, stepX do
                     if not getgenv().AutoClearEnabled then break end
@@ -246,6 +243,7 @@ task.spawn(function()
                         maxUp = maxUp + 1
                     end
                     
+                    -- JALAN! Kalau ini blok pertama, jalan santai. Sisanya NGEBUT!
                     WalkToGrid(standX, standY, not isFirstBlock)
                     isFirstBlock = false 
                     
@@ -259,7 +257,7 @@ task.spawn(function()
                         tries = tries + 1
                     end
                     
-                    -- Failsafe Blacklist tetap ada jika ada bug blok
+                    -- Failsafe Blacklist (jika masih memukul Bedrock aneh)
                     if tries >= getgenv().MaxHitFailsafe then
                         getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                     end
