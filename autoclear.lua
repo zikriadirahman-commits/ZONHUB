@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (V28 CORE + INSTANT NEXT + AUTO-SKIP BEDROCK) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (PERMANENT SPEED & SMART MEMORY JUMP) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v43 - Ultimate Speed & Jump" 
+getgenv().ScriptVersion = "AutoClear v44 - Smart Bedrock Bypass" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -15,8 +15,8 @@ getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.03  
-getgenv().StepDelay = 0.1     -- [AMAN] Jeda jalan V28 khusus pas Start awal
-getgenv().MaxHitFailsafe = 25 -- [CEPAT] Diturunkan agar kalau ketemu Bedrock, dia cuma mikir 0.7 detik lalu LANGSUNG LOMPAT!
+getgenv().StepDelay = 0.1     -- [AMAN] Jalan V28 khusus pas Start awal (Permanen)
+getgenv().MaxHitFailsafe = 15 -- [CEPAT] Bot hanya memukul 0.4 detik. Jika tak hancur, langsung LOMPAT!
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 -- ========================================== --
@@ -80,7 +80,7 @@ local function ToggleCXFly(state)
 end
 
 -- ========================================== --
--- SENSOR PINTAR
+-- SENSOR PINTAR DENGAN MEMORI (BLACKLIST = HALANGAN)
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -91,6 +91,9 @@ local function GetFilterObjects()
 end
 
 local function IsObstacle(gridX, gridY)
+    -- [KUNCI UTAMA] Jika blok ini sudah dicap tak bisa hancur (Blacklist), jadikan sebagai pijakan untuk LOMPAT!
+    if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return true end
+
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
     local startZ = Hitbox and Hitbox.Position.Z or 0
     local checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, startZ)
@@ -131,7 +134,7 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- FUNGSI JALAN MURNI V28 (TETAP PARKOUR, TAPI BISA NGEBUT)
+-- FUNGSI JALAN MURNI V28 (PARKOUR & NGEBUT)
 -- ========================================== --
 local function WalkToGrid(tX, tY, isFast)
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
@@ -148,7 +151,6 @@ local function WalkToGrid(tX, tY, isFast)
         local nextX = currentX
         local nextY = currentY
 
-        -- PRIORITAS LOMPAT V28
         if currentX ~= tX then 
             local stepDir = (tX > currentX) and 1 or -1
             if IsObstacle(currentX + stepDir, currentY) then
@@ -172,11 +174,11 @@ local function WalkToGrid(tX, tY, isFast)
         if HRP then HRP.CFrame = CFrame.new(newPos); HRP.Velocity = Vector3.zero end
         if PlayerMovement then pcall(function() PlayerMovement.Position = newPos end) end
         
-        -- KEPUTUSAN KECEPATAN: Kalau isFast True, jalan Instan. Kalau False, jalan Santai.
+        -- KEPUTUSAN KECEPATAN TETAP PERMANEN
         if isFast then
-            task.wait() -- Tanpa jeda, langsung ngebut!
+            task.wait() 
         else
-            task.wait(getgenv().StepDelay) -- Pakai jeda aman V28
+            task.wait(getgenv().StepDelay) 
         end
     end
 end
@@ -216,7 +218,7 @@ task.spawn(function()
                 local startX, endX, stepX = getgenv().AC_StartX, getgenv().AC_EndX, 1
                 if not arahKanan then startX, endX, stepX = getgenv().AC_EndX, getgenv().AC_StartX, -1 end
 
-                local isFirstBlock = true -- Penanda blok pertama di baris
+                local isFirstBlock = true 
 
                 for currentX = startX, endX, stepX do
                     if not getgenv().AutoClearEnabled then break end
@@ -237,21 +239,30 @@ task.spawn(function()
                         maxUp = maxUp + 1
                     end
                     
-                    -- JALAN! Kalau ini blok pertama, jalan santai. Sisanya NGEBUT!
                     WalkToGrid(standX, standY, not isFirstBlock)
                     isFirstBlock = false 
+                    
+                    local HitboxFolder = workspace:FindFirstChild("Hitbox")
+                    local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
+                    local lockCFrame = MyHitbox and MyHitbox.CFrame or nil
                     
                     local tries = 0
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
                         if not NeedsBreaking(currentX, blockTargetY) then break end
+                        
+                        if MyHitbox and lockCFrame then
+                            MyHitbox.CFrame = lockCFrame
+                            MyHitbox.Velocity = Vector3.zero
+                        end
 
                         RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                         task.wait(getgenv().BreakDelay)
                         tries = tries + 1
                     end
                     
-                    -- Jika sampai batas Failsafe (berarti Bedrock yg tak terdeteksi), blacklist & skip!
+                    -- JIKA TAK HANCUR, MASUK BLACKLIST. 
+                    -- Pada loop selanjutnya, blok ini akan dibaca sebagai Pijakan/Halangan, lalu dilewati!
                     if tries >= getgenv().MaxHitFailsafe then
                         getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                     end
