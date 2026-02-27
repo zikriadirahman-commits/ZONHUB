@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE V33 (PURE STEP & INSTANT NEXT) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE V34 (SAFE WALK & NATURAL BREAK) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v33 - Pure Step" 
+getgenv().ScriptVersion = "AutoClear v34 - Safe Walk" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -14,8 +14,8 @@ getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
-getgenv().BreakDelay = 0.01   -- Sangat Cepat
-getgenv().StepDelay = 0.05    -- Kecepatan Jalan Per Kotak
+getgenv().BreakDelay = 0.05   -- Jeda aman memukul (Sama dengan Pabrik)
+getgenv().StepDelay = 0.15    -- Berjalan perlahan per block agar server sinkron
 getgenv().MaxHitFailsafe = 30 
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
@@ -105,7 +105,7 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- FUNGSI JALAN PER-BLOCK & AUTO-NAIK PINTU
+-- FUNGSI JALAN PER-BLOCK (NATURAL STEP)
 -- ========================================== --
 local function WalkToGrid(tX, tY)
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
@@ -121,7 +121,7 @@ local function WalkToGrid(tX, tY)
         local nextX = currentX
         local nextY = currentY
 
-        -- Logika menghindar rintangan (Jika terhalang, naik 1 block)
+        -- Logika menghindar rintangan 
         if currentX ~= tX then 
             local stepDir = (tX > currentX) and 1 or -1
             if IsObstacle(currentX + stepDir, currentY) then
@@ -140,7 +140,7 @@ local function WalkToGrid(tX, tY)
         
         local newPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
         
-        -- Memindahkan karakter murni
+        -- Pindah perlahan persis seperti Pabrik.lua
         Hitbox.CFrame = CFrame.new(newPos)
         if PlayerMovement then pcall(function() PlayerMovement.Position = newPos end) end
         
@@ -149,7 +149,7 @@ local function WalkToGrid(tX, tY)
 end
 
 -- ========================================== --
--- LOGIKA ZIG-ZAG UTAMA (SIDE-BREAK & INSTANT NEXT)
+-- LOGIKA ZIG-ZAG UTAMA 
 -- ========================================== --
 local isRunning = false
 
@@ -184,9 +184,6 @@ task.spawn(function()
                     
                     local sideX = currentX - stepX
                     local sideY = blockTargetY
-                    
-                    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-                    local startZ = Hitbox and Hitbox.Position.Z or 0
 
                     local canSideBreak = (not IsObstacle(sideX, sideY)) and (not NeedsBreaking(sideX, sideY))
                     
@@ -200,14 +197,10 @@ task.spawn(function()
                         while tries < getgenv().MaxHitFailsafe do
                             if not getgenv().AutoClearEnabled then break end
                             
-                            -- INSTANT NEXT: Berhenti seketika begitu hancur
+                            -- Berhenti seketika begitu hancur
                             if not NeedsBreaking(currentX, blockTargetY) then break end 
-                            
-                            -- Mempertahankan posisi saat mukul (agar tidak jatuh/gerak)
-                            local lockPos = Vector3.new(sideX * getgenv().GridSize, sideY * getgenv().GridSize, startZ)
-                            if Hitbox then Hitbox.CFrame = CFrame.new(lockPos) end
-                            if PlayerMovement then pcall(function() PlayerMovement.Position = lockPos end) end
 
+                            -- HANYA mengirim perintah pukul, tidak mengutak-atik posisi CFrame
                             RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                             task.wait(getgenv().BreakDelay)
                             tries = tries + 1
@@ -221,7 +214,6 @@ task.spawn(function()
                         -- OPSI B: HANCURKAN DARI ATAS (BYPASS)
                         -- =====================================
                         local attackY = currentY
-                        -- Cari udara kosong di atas untuk memukul, hindari numbur pintu
                         while IsObstacle(currentX, attackY) do 
                             attackY = attackY + 1 
                             if attackY > currentY + 10 then break end
@@ -233,14 +225,10 @@ task.spawn(function()
                         while tries < getgenv().MaxHitFailsafe do
                             if not getgenv().AutoClearEnabled then break end
                             
-                            -- INSTANT NEXT: Berhenti seketika begitu hancur
+                            -- Berhenti seketika begitu hancur
                             if not NeedsBreaking(currentX, blockTargetY) then break end 
-                            
-                            -- Mempertahankan posisi melayang di udara saat memukul
-                            local lockPos = Vector3.new(currentX * getgenv().GridSize, attackY * getgenv().GridSize, startZ)
-                            if Hitbox then Hitbox.CFrame = CFrame.new(lockPos) end
-                            if PlayerMovement then pcall(function() PlayerMovement.Position = lockPos end) end
 
+                            -- HANYA mengirim perintah pukul, tidak mengutak-atik posisi CFrame
                             RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                             task.wait(getgenv().BreakDelay)
                             tries = tries + 1
