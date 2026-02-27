@@ -1,9 +1,9 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (V49 PERFECT GLIDE & INSTANT NEXT) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (V50 INSTANT NEXT + PERFECT Z-DEPTH) ]] --
 
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v49 - Server Glide & Instant Next" 
+getgenv().ScriptVersion = "AutoClear v50 - Instant Next" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL
@@ -16,7 +16,7 @@ getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.03  
-getgenv().GlideSpeed = 1.5   -- Standar mulus (jangan terlalu besar agar tidak teleport)
+getgenv().GlideSpeed = 1.5   -- Standar mulus
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 
@@ -80,7 +80,7 @@ local function ToggleCXFly(state)
 end
 
 -- ========================================== --
--- SENSOR PINTAR BLOK & BEDROCK (DIKEMBALIKAN)
+-- SENSOR PINTAR (DIPERBAIKI KEDALAMANNYA)
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -99,8 +99,8 @@ local function IsBedrock(gridX, gridY)
     params.FilterDescendantsInstances = GetFilterObjects()
     params.FilterType = Enum.RaycastFilterType.Exclude
 
-    -- Sensor dikembalikan ke 3x3x50 agar tidak error/diam saja
-    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
+    -- Kedalaman dipotong jadi 5 agar tidak tembus map
+    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 5), params)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") and string.match(string.lower(part.Name), "bedrock") then
             return true
@@ -120,8 +120,8 @@ local function NeedsBreaking(gridX, gridY)
     params.FilterDescendantsInstances = GetFilterObjects()
     params.FilterType = Enum.RaycastFilterType.Exclude
 
-    -- Sensor dikembalikan ke 3x3x50 agar akurat mendeteksi blok/background
-    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
+    -- Kedalaman (Z) 5 untuk menghindari deteksi gunung/langit di background
+    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 5), params)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then 
             local pName = string.lower(part.Name)
@@ -229,8 +229,6 @@ task.spawn(function()
                     -- ========================================== --
                     -- STRICT BREAK LOOP (INSTAN PINDAH)
                     -- ========================================== --
-                    -- Memakai loop while agar dia tidak membuang waktu memanggil Glide lagi, 
-                    -- sehingga saat server melenyapkan block, script langsung menyadari & putus loop-nya.
                     while NeedsBreaking(currentX, blockTargetY) and getgenv().AutoClearEnabled do
                         
                         -- Mengunci koordinat karakter secara absolut di tempat
@@ -248,7 +246,7 @@ task.spawn(function()
                         RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                         
                         extremeFailsafe = extremeFailsafe + 1
-                        if extremeFailsafe > 150 then -- Sekitar 4 detik maksimal per blok jika lag parah
+                        if extremeFailsafe > 150 then
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                             break
                         end
