@@ -1,9 +1,9 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (V55 PERFECT LOCK & TUNNEL BYPASS) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (V56 100% LOCK & TUNNEL BYPASS) ]] --
 
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v55 - Perfect Lock & Tunnel Bypass" 
+getgenv().ScriptVersion = "AutoClear v56 - 100% Lock & Tunnel Bypass" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL
@@ -18,6 +18,10 @@ getgenv().GridSize = 4.5
 getgenv().BreakDelay = 0.03  
 getgenv().GlideSpeed = 1.5   
 getgenv().MaxHits = 25       -- Cepat geser (0.7 detik max)
+
+-- [!] INI SOLUSI AGAR TIDAK KEBAWAH-BAWAH (STUCK)
+-- Menambah tinggi 3.5 stud agar karakter 100% murni di atas block
+getgenv().HoverOffset = 3.5  
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 
@@ -52,7 +56,7 @@ CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- FUNGSI TERBANG FISIK (ANTI-GRAVITASI)
+-- FUNGSI KUNCI TOTAL (100% ANTI GETAR)
 -- ========================================== --
 local function ToggleCXFly(state)
     local Char = LP.Character
@@ -65,18 +69,9 @@ local function ToggleCXFly(state)
     local parts = {HRP, Hitbox}
     for _, part in ipairs(parts) do
         if part then
-            part.Anchored = false -- Pastikan awalnya tidak terkunci
-            if state then
-                part.CanCollide = false 
-                local bv = part:FindFirstChild("ZON_FlyBV") or Instance.new("BodyVelocity")
-                bv.Name = "ZON_FlyBV"
-                bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-                bv.Velocity = Vector3.zero 
-                bv.Parent = part
-            else
-                part.CanCollide = true
-                if part:FindFirstChild("ZON_FlyBV") then part.ZON_FlyBV:Destroy() end
-            end
+            -- [!] KUNCI MATI FISIKNYA. Karena sudah dikunci, getar 100% hilang.
+            part.Anchored = state 
+            part.CanCollide = not state
         end
     end
 end
@@ -107,7 +102,6 @@ local function IsUnbreakable(gridX, gridY)
             local pName = string.lower(part.Name)
             local parentName = part.Parent and string.lower(part.Parent.Name) or ""
             
-            -- Pintar lewati Main Door dan Bedrock (termasuk modelnya)
             if string.find(pName, "bedrock") or string.find(parentName, "bedrock") or
                string.find(pName, "door") or string.find(parentName, "door") or
                string.find(pName, "main") or string.find(parentName, "main") or
@@ -146,15 +140,13 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- SISTEM GLIDE SERVER-SYNC
+-- SISTEM GLIDE BERBASIS VECTOR3 (SANGAT PRESISI)
 -- ========================================== --
-local function ServerSyncedGlide(gX, gY)
+local function ServerSyncedGlide(targetPos)
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
     local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
     if not Hitbox or not HRP then return end
 
-    local startZ = Hitbox.Position.Z
-    local targetPos = Vector3.new(gX * getgenv().GridSize, gY * getgenv().GridSize, startZ)
     local speed = getgenv().GlideSpeed 
     
     while getgenv().AutoClearEnabled do
@@ -163,9 +155,7 @@ local function ServerSyncedGlide(gX, gY)
         
         if distance <= speed then
             Hitbox.CFrame = CFrame.new(targetPos)
-            Hitbox.Velocity = Vector3.zero
             HRP.CFrame = CFrame.new(targetPos)
-            HRP.Velocity = Vector3.zero
             if PlayerMovement then pcall(function() PlayerMovement.Position = targetPos end) end
             break
         else
@@ -173,9 +163,7 @@ local function ServerSyncedGlide(gX, gY)
             local nextPos = currentPos + (direction * speed)
             
             Hitbox.CFrame = CFrame.new(nextPos)
-            Hitbox.Velocity = Vector3.zero
             HRP.CFrame = CFrame.new(nextPos)
-            HRP.Velocity = Vector3.zero
             if PlayerMovement then pcall(function() PlayerMovement.Position = nextPos end) end
         end
         task.wait() 
@@ -220,7 +208,7 @@ task.spawn(function()
                 for currentX = startX, endX, stepX do
                     if not getgenv().AutoClearEnabled then break end
                     
-                    -- [!] CEK TARGET: Kalau target utamanya Bedrock, langsung LEWATI (Skip Column)
+                    -- [!] CEK TARGET: Kalau target utamanya Bedrock, langsung LEWATI
                     if IsUnbreakable(currentX, blockTargetY) then
                         getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                         continue 
@@ -228,53 +216,59 @@ task.spawn(function()
 
                     if not NeedsBreaking(currentX, blockTargetY) then continue end
 
-                    local hoverY = blockTargetY + 1
                     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
                     local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+                    local lockZ = Hitbox and Hitbox.Position.Z or 0
+                    
+                    local hoverY_Grid = blockTargetY + 1
+                    
+                    -- [!] MENGGUNAKAN HOVER OFFSET AGAR 100% DI ATAS BLOK (TIDAK NYANGKUT)
+                    local targetY_Pos = (hoverY_Grid * getgenv().GridSize) + getgenv().HoverOffset
+                    local hoverPos = Vector3.new(currentX * getgenv().GridSize, targetY_Pos, lockZ)
 
                     -- ========================================== --
                     -- [!] SISTEM BYPASS TEROWONGAN (TURUN 1 BLOK)
                     -- ========================================== --
                     -- Mengecek apakah di udara tempat kita mau glide ternyata ada Bedrock/Pintu
-                    if IsUnbreakable(currentX, hoverY) then
+                    if IsUnbreakable(currentX, hoverY_Grid) then
                         
-                        -- Turunkan target melayang ke level tanah (Y-1)
-                        hoverY = blockTargetY 
-                        local standX = currentX - stepX -- Posisi kita saat ini
+                        -- Mundur dan turun ke depan blok tersebut (posisi sejajar tanah)
+                        local standX = currentX - stepX 
+                        local tunnelPos = Vector3.new(standX * getgenv().GridSize, blockTargetY * getgenv().GridSize, lockZ)
                         
-                        -- Mundur dan turun ke depan blok tersebut
-                        ServerSyncedGlide(standX, hoverY)
+                        ServerSyncedGlide(tunnelPos)
                         
-                        -- Bekukan fisik 100% (Anti-Getar)
-                        if Hitbox then Hitbox.Anchored = true end
-                        if HRP then HRP.Anchored = true end
-
                         -- Hancurkan tanah di depannya dari posisi mundur
                         local preFailsafe = 0
                         while NeedsBreaking(currentX, blockTargetY) and getgenv().AutoClearEnabled do
+                            
+                            -- Kunci keras di tempat agar tidak getar
+                            if Hitbox then Hitbox.CFrame = CFrame.new(tunnelPos) end
+                            if HRP then HRP.CFrame = CFrame.new(tunnelPos) end
+                            if PlayerMovement then pcall(function() PlayerMovement.Position = tunnelPos end) end
+                            
+                            if IsUnbreakable(currentX, blockTargetY) then break end
                             RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
+                            
                             preFailsafe = preFailsafe + 1
                             if preFailsafe > getgenv().MaxHits then break end
                             task.wait(getgenv().BreakDelay)
                         end
-                        
-                        -- Lepas kunci fisik agar bisa maju
-                        if Hitbox then Hitbox.Anchored = false end
-                        if HRP then HRP.Anchored = false end
                     end
 
-                    -- MELUNCUR KE TARGET (Entah di udara atas atau maju ke dalam tanah yang baru dihancurkan)
-                    ServerSyncedGlide(currentX, hoverY)
-                    
+                    -- MELUNCUR KE TARGET DI ATAS
+                    ServerSyncedGlide(hoverPos)
+
                     -- ========================================== --
                     -- STRICT BREAK LOOP (KUNCI MATI ANTI-GETAR)
                     -- ========================================== --
-                    -- Bekukan fisik 100% saat berada tepat di atas/di dalam blok
-                    if Hitbox then Hitbox.Anchored = true end
-                    if HRP then HRP.Anchored = true end
-
                     local extremeFailsafe = 0
                     while NeedsBreaking(currentX, blockTargetY) and getgenv().AutoClearEnabled do
+                        
+                        -- Mengunci koordinat karakter secara absolut menggunakan koordinat hoverPos
+                        if Hitbox then Hitbox.CFrame = CFrame.new(hoverPos) end
+                        if HRP then HRP.CFrame = CFrame.new(hoverPos) end
+                        if PlayerMovement then pcall(function() PlayerMovement.Position = hoverPos end) end
                         
                         if IsUnbreakable(currentX, blockTargetY) then
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
@@ -291,10 +285,6 @@ task.spawn(function()
                         
                         task.wait(getgenv().BreakDelay)
                     end
-                    
-                    -- Hancur total, lepas kunci fisik untuk bersiap meluncur lagi!
-                    if Hitbox then Hitbox.Anchored = false end
-                    if HRP then HRP.Anchored = false end
                 end
                 
                 arahKanan = not arahKanan 
