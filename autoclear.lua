@@ -1,11 +1,11 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (LOCKED START & HYPER-NEXT + JUMP) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (V28 BASE + SIDE BREAK NGEBUT) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v42 - The True Final Fix" 
+getgenv().ScriptVersion = "AutoClear v28.5 - Perfect Side Snappy" 
 
 -- ========================================== --
--- VARIABEL GLOBAL 
+-- VARIABEL GLOBAL (Murni bawaan V28)
 -- ========================================== --
 getgenv().AutoClearEnabled = false
 getgenv().AC_StartX = 0
@@ -14,9 +14,10 @@ getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
-getgenv().BreakDelay = 0.03       -- Kecepatan pukul agar background hancur
-getgenv().NormalStepDelay = 0.15  -- [LOGIKA 1] Jalan Start yang sudah terbukti AMAN
-getgenv().MaxHitFailsafe = 100 
+getgenv().BreakDelay = 0.03  -- Disesuaikan sedikit agar background hancur 
+getgenv().StepDelay = 0.1    -- Jeda jalan per grid (Anti-Blink/Glitch V28)
+getgenv().MoveDelay = 0      -- [DIUBAH KE 0] Agar langsung mukul tanpa nunggu!
+getgenv().MaxHitFailsafe = 50 
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 -- ========================================== --
@@ -44,6 +45,9 @@ local Theme = { Item = Color3.fromRGB(45, 45, 45), Text = Color3.fromRGB(255, 25
 local function CreateToggle(Parent, Text, Var) local Btn = Instance.new("TextButton", Parent); Btn.BackgroundColor3 = Theme.Item; Btn.Size = UDim2.new(1, -10, 0, 35); Btn.Text = ""; Btn.AutoButtonColor = false; local C = Instance.new("UICorner", Btn); C.CornerRadius = UDim.new(0, 6); local T = Instance.new("TextLabel", Btn); T.Text = Text; T.TextColor3 = Theme.Text; T.Font = Enum.Font.GothamSemibold; T.TextSize = 12; T.Size = UDim2.new(1, -40, 1, 0); T.Position = UDim2.new(0, 10, 0, 0); T.BackgroundTransparency = 1; T.TextXAlignment = Enum.TextXAlignment.Left; local IndBg = Instance.new("Frame", Btn); IndBg.Size = UDim2.new(0, 36, 0, 18); IndBg.Position = UDim2.new(1, -45, 0.5, -9); IndBg.BackgroundColor3 = Color3.fromRGB(30,30,30); local IC = Instance.new("UICorner", IndBg); IC.CornerRadius = UDim.new(1,0); local Dot = Instance.new("Frame", IndBg); Dot.Size = UDim2.new(0, 14, 0, 14); Dot.Position = UDim2.new(0, 2, 0.5, -7); Dot.BackgroundColor3 = Color3.fromRGB(100,100,100); local DC = Instance.new("UICorner", Dot); DC.CornerRadius = UDim.new(1,0); Btn.MouseButton1Click:Connect(function() getgenv()[Var] = not getgenv()[Var]; if getgenv()[Var] then Dot:TweenPosition(UDim2.new(1, -16, 0.5, -7), "Out", "Quad", 0.2, true); Dot.BackgroundColor3 = Color3.new(1,1,1); IndBg.BackgroundColor3 = Theme.Purple else Dot:TweenPosition(UDim2.new(0, 2, 0.5, -7), "Out", "Quad", 0.2, true); Dot.BackgroundColor3 = Color3.fromRGB(100,100,100); IndBg.BackgroundColor3 = Color3.fromRGB(30,30,30) end end) end
 local function CreateSlider(Parent, Text, Min, Max, Default, Var) local Frame = Instance.new("Frame", Parent); Frame.BackgroundColor3 = Theme.Item; Frame.Size = UDim2.new(1, -10, 0, 45); local C = Instance.new("UICorner", Frame); C.CornerRadius = UDim.new(0, 6); local Label = Instance.new("TextLabel", Frame); Label.Text = Text .. ": " .. Default; Label.TextColor3 = Theme.Text; Label.BackgroundTransparency = 1; Label.Size = UDim2.new(1, 0, 0, 20); Label.Position = UDim2.new(0, 10, 0, 2); Label.Font = Enum.Font.GothamSemibold; Label.TextSize = 12; Label.TextXAlignment = Enum.TextXAlignment.Left; local SliderBg = Instance.new("TextButton", Frame); SliderBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30); SliderBg.Position = UDim2.new(0, 10, 0, 28); SliderBg.Size = UDim2.new(1, -20, 0, 6); SliderBg.Text = ""; SliderBg.AutoButtonColor = false; local SC = Instance.new("UICorner", SliderBg); SC.CornerRadius = UDim.new(1,0); local Fill = Instance.new("Frame", SliderBg); Fill.BackgroundColor3 = Theme.Purple; Fill.Size = UDim2.new((Default-Min)/(Max-Min), 0, 1, 0); local FC = Instance.new("UICorner", Fill); FC.CornerRadius = UDim.new(1,0); local Dragging = false; local function Update(input) local SizeX = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1); local Val = math.floor(Min + ((Max - Min) * SizeX)); Fill.Size = UDim2.new(SizeX, 0, 1, 0); Label.Text = Text .. ": " .. Val; getgenv()[Var] = Val end; SliderBg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then Dragging = true; Update(i) end end); UIS.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then Dragging = false end end); UIS.InputChanged:Connect(function(i) if Dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then Update(i) end end) end
 
+-- ========================================== --
+-- MEMBANGUN MENU UI 
+-- ========================================== --
 CreateToggle(TargetPage, "Start Auto Clear World", "AutoClearEnabled")
 CreateSlider(TargetPage, "Start X", 0, 500, 0, "AC_StartX")
 CreateSlider(TargetPage, "End X", 0, 500, 100, "AC_EndX")
@@ -51,7 +55,7 @@ CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- FUNGSI TERBANG CX
+-- FUNGSI TERBANG CX (ANTI GETAR MURNI V28)
 -- ========================================== --
 local function ToggleCXFly(state)
     local Char = LP.Character
@@ -65,7 +69,7 @@ local function ToggleCXFly(state)
     for _, part in ipairs(parts) do
         if part then
             if state then
-                part.CanCollide = false
+                part.CanCollide = false 
                 local bv = part:FindFirstChild("ZON_FlyBV") or Instance.new("BodyVelocity")
                 bv.Name = "ZON_FlyBV"
                 bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
@@ -80,7 +84,7 @@ local function ToggleCXFly(state)
 end
 
 -- ========================================== --
--- SENSOR SMART 
+-- FUNGSI SCAN PINTAR V28 (DITAMBAH DOOR)
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -90,12 +94,11 @@ local function GetFilterObjects()
     return filter
 end
 
-local function IsSolidObstacle(gridX, gridY)
-    local HitboxFolder = workspace:FindFirstChild("Hitbox")
-    local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
-    local startZ = MyHitbox and MyHitbox.Position.Z or 0
-    
+local function IsObstacle(gridX, gridY)
+    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
+    local startZ = Hitbox and Hitbox.Position.Z or 0
     local checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, startZ)
+    
     local params = OverlapParams.new()
     params.FilterDescendantsInstances = GetFilterObjects()
     params.FilterType = Enum.RaycastFilterType.Exclude
@@ -104,8 +107,8 @@ local function IsSolidObstacle(gridX, gridY)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then
             local pName = string.lower(part.Name)
-            if string.find(pName, "bedrock") or string.find(pName, "border") or string.find(pName, "portal") or string.find(pName, "spawn") or string.find(pName, "door") then
-                return true 
+            if string.find(pName, "door") or string.find(pName, "portal") or string.find(pName, "entrance") or string.find(pName, "spawn") or string.find(pName, "bedrock") or string.find(pName, "border") then
+                return true
             end
         end
     end
@@ -114,91 +117,70 @@ end
 
 local function NeedsBreaking(gridX, gridY)
     if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return false end
-    local HitboxFolder = workspace:FindFirstChild("Hitbox")
-    local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
-    local startZ = MyHitbox and MyHitbox.Position.Z or 0
-    
+    if IsObstacle(gridX, gridY) then return false end
+
+    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
+    local startZ = Hitbox and Hitbox.Position.Z or 0
     local checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, startZ)
+    
     local params = OverlapParams.new()
     params.FilterDescendantsInstances = GetFilterObjects()
     params.FilterType = Enum.RaycastFilterType.Exclude
 
     local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
     for _, part in ipairs(parts) do
-        if part:IsA("BasePart") then 
-            local pName = string.lower(part.Name)
-            if string.find(pName, "bedrock") or string.find(pName, "border") or string.find(pName, "spawn") or string.find(pName, "portal") or string.find(pName, "door") then continue end
-            return true 
-        end
+        if part:IsA("BasePart") then return true end
     end
     return false
 end
 
 -- ========================================== --
--- PERGERAKAN DENGAN LOGIKA LOMPAT (V28) + MESIN 2-FRAME
+-- FUNGSI JALAN PINTAR V28 (MURNI TIDAK DIUBAH)
 -- ========================================== --
-local function WalkToGrid(tX, tY, isFast)
-    local HitboxFolder = workspace:FindFirstChild("Hitbox")
-    local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
-    if not MyHitbox then return end
+local function WalkToGrid(tX, tY)
+    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
+    local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    if not Hitbox then return end
 
-    local startZ = MyHitbox.Position.Z
-    local currentX = math.floor(MyHitbox.Position.X / getgenv().GridSize + 0.5)
-    local currentY = math.floor(MyHitbox.Position.Y / getgenv().GridSize + 0.5)
+    local startZ = Hitbox.Position.Z
+    local currentX = math.floor(Hitbox.Position.X / getgenv().GridSize + 0.5)
+    local currentY = math.floor(Hitbox.Position.Y / getgenv().GridSize + 0.5)
 
-    local stuckCounter = 0
     while (currentX ~= tX or currentY ~= tY) do
         if not getgenv().AutoClearEnabled then break end
         
         local nextX = currentX
         local nextY = currentY
 
-        -- [ LOGIKA LOMPAT V28 YANG BIKIN PINTAR ]
         if currentX ~= tX then 
             local stepDir = (tX > currentX) and 1 or -1
-            if IsSolidObstacle(currentX + stepDir, currentY) then
-                nextY = currentY + 1 -- Lompat naik jika di depan ada Pintu / Bedrock
+            if IsObstacle(currentX + stepDir, currentY) then
+                nextY = currentY + 1
             else
                 nextX = currentX + stepDir
             end
         elseif currentY < tY then 
             nextY = currentY + 1
         elseif currentY > tY then 
-            if IsSolidObstacle(currentX, currentY - 1) then break end
+            if IsObstacle(currentX, currentY - 1) then break end
             nextY = currentY - 1 
         end
         
-        if nextX == currentX and nextY == currentY then
-            stuckCounter = stuckCounter + 1
-            if stuckCounter > 3 then break end
-        else
-            stuckCounter = 0
-        end
-
         currentX = nextX
         currentY = nextY
         
-        local newWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
+        local newPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
         
-        if isFast then
-            -- [ LOGIKA 2 ] NGEBUT (Transisi kilat 2-frame, dijamin tidak blink tapi instan)
-            local startPos = MyHitbox.Position
-            MyHitbox.CFrame = CFrame.new(startPos:Lerp(newWorldPos, 0.5))
-            task.wait() 
-            MyHitbox.CFrame = CFrame.new(newWorldPos)
-            if PlayerMovement then pcall(function() PlayerMovement.Position = newWorldPos end) end
-            task.wait() 
-        else
-            -- [ LOGIKA 1 ] SANTAI (Aman 100% dari anti-cheat saat Start / Pindah Baris Jauh)
-            MyHitbox.CFrame = CFrame.new(newWorldPos)
-            if PlayerMovement then pcall(function() PlayerMovement.Position = newWorldPos end) end
-            task.wait(getgenv().NormalStepDelay)
-        end
+        if Hitbox then Hitbox.CFrame = CFrame.new(newPos); Hitbox.Velocity = Vector3.zero end
+        if HRP then HRP.CFrame = CFrame.new(newPos); HRP.Velocity = Vector3.zero end
+        if PlayerMovement then pcall(function() PlayerMovement.Position = newPos end) end
+        
+        task.wait(getgenv().StepDelay)
     end
 end
 
 -- ========================================== --
--- LOGIKA ZIG-ZAG UTAMA
+-- LOGIKA ZIG-ZAG UTAMA (V28 DENGAN POSISI SAMPING)
 -- ========================================== --
 local isRunning = false
 
@@ -219,7 +201,10 @@ task.spawn(function()
                         break
                     end
                 end
-                if foundBlock then highestTargetY = scanY; break end
+                if foundBlock then
+                    highestTargetY = scanY
+                    break
+                end
             end
 
             for currentY = highestTargetY, getgenv().AC_EndY, -1 do
@@ -229,44 +214,39 @@ task.spawn(function()
                 local startX, endX, stepX = getgenv().AC_StartX, getgenv().AC_EndX, 1
                 if not arahKanan then startX, endX, stepX = getgenv().AC_EndX, getgenv().AC_StartX, -1 end
 
-                local isFirstBlock = true 
-
                 for currentX = startX, endX, stepX do
                     if not getgenv().AutoClearEnabled then break end
                     
                     if not NeedsBreaking(currentX, blockTargetY) then continue end
                     
+                    -- [[ PERBAIKAN: BERDIRI DARI SAMPING ]]
                     local standX = currentX - stepX
                     local standY = blockTargetY
-
+                    
+                    -- Jika mentok map (Border), berdiri di atasnya
                     if standX < getgenv().AC_StartX or standX > getgenv().AC_EndX then
                         standX = currentX
                         standY = blockTargetY + 1
-                    else
-                        local maxUp = 0
-                        while IsSolidObstacle(standX, standY) and maxUp < 5 do
-                            standY = standY + 1
-                            maxUp = maxUp + 1
-                        end
+                    end
+
+                    -- Pastikan tempat berdiri bukan Bedrock/Pintu. Kalau iya, naik.
+                    local maxUp = 0
+                    while IsObstacle(standX, standY) and maxUp < 5 do
+                        standY = standY + 1
+                        maxUp = maxUp + 1
                     end
                     
-                    -- Panggil pergerakan (Santai di awal, Ngebut setelahnya)
-                    WalkToGrid(standX, standY, not isFirstBlock)
-                    isFirstBlock = false 
+                    -- Jalan murni V28!
+                    WalkToGrid(standX, standY)
                     
-                    local HitboxFolder = workspace:FindFirstChild("Hitbox")
-                    local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
-                    local lockCFrame = MyHitbox and MyHitbox.CFrame or nil
-
+                    -- Hapus MoveDelay (diset 0) agar langsung pukul tanpa diam
+                    if getgenv().MoveDelay > 0 then task.wait(getgenv().MoveDelay) end 
+                    
+                    -- Loop Pemukulan V28 murni
                     local tries = 0
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
                         if not NeedsBreaking(currentX, blockTargetY) then break end
-
-                        if MyHitbox and lockCFrame then
-                            MyHitbox.CFrame = lockCFrame
-                            MyHitbox.Velocity = Vector3.zero
-                        end
 
                         RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                         task.wait(getgenv().BreakDelay)
@@ -283,6 +263,7 @@ task.spawn(function()
             
             isRunning = false
             if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
+            
             ToggleCXFly(false)
         end
     end
