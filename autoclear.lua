@@ -1,9 +1,9 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (V50 INSTANT NEXT + PERFECT Z-DEPTH) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (V51 PERFECT SENSOR & INSTANT NEXT) ]] --
 
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v50 - Instant Next" 
+getgenv().ScriptVersion = "AutoClear v51 - Perfect Sensor" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL
@@ -51,7 +51,7 @@ CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- FUNGSI TERBANG FISIK (MURNI BAWAAN)
+-- FUNGSI TERBANG FISIK 
 -- ========================================== --
 local function ToggleCXFly(state)
     local Char = LP.Character
@@ -80,7 +80,7 @@ local function ToggleCXFly(state)
 end
 
 -- ========================================== --
--- SENSOR PINTAR (DIPERBAIKI KEDALAMANNYA)
+-- SENSOR PINTAR (UKURAN DIPERBAIKI)
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -99,8 +99,8 @@ local function IsBedrock(gridX, gridY)
     params.FilterDescendantsInstances = GetFilterObjects()
     params.FilterType = Enum.RaycastFilterType.Exclude
 
-    -- Kedalaman dipotong jadi 5 agar tidak tembus map
-    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 5), params)
+    -- Sensor 4.5 x 4.5 menyesuaikan grid, kedalaman 20 agar pas
+    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(4.5, 4.5, 20), params)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") and string.match(string.lower(part.Name), "bedrock") then
             return true
@@ -120,8 +120,8 @@ local function NeedsBreaking(gridX, gridY)
     params.FilterDescendantsInstances = GetFilterObjects()
     params.FilterType = Enum.RaycastFilterType.Exclude
 
-    -- Kedalaman (Z) 5 untuk menghindari deteksi gunung/langit di background
-    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 5), params)
+    -- Sensor 4.5 x 4.5 menyesuaikan grid, kedalaman 20 agar pas
+    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(4.5, 4.5, 20), params)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then 
             local pName = string.lower(part.Name)
