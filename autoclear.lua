@@ -1,11 +1,11 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (PERMANENT CORE & SMART BEDROCK SENSOR) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (V43 CORE + SMART BEDROCK SENSOR FIX) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v45 - Permanent Core Fix" 
+getgenv().ScriptVersion = "AutoClear v46 - Absolute Smart Skip" 
 
 -- ========================================== --
--- VARIABEL GLOBAL 
+-- VARIABEL GLOBAL (MURNI V43)
 -- ========================================== --
 getgenv().AutoClearEnabled = false
 getgenv().AC_StartX = 0
@@ -15,13 +15,11 @@ getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.03  
-getgenv().StepDelay = 0.1      -- [JALAN AMAN] Untuk start awal (Permanen)
-getgenv().MaxHitFailsafe = 100 -- [DIKEMBALIKAN KE 100] Agar Background pasti hancur sempurna dan tidak memicu lompat error!
+getgenv().StepDelay = 0.1     -- [AMAN] Jeda jalan V28 khusus pas Start awal
+getgenv().MaxHitFailsafe = 100 -- [PENTING] Tetap 100 agar tidak salah mengira Background sebagai Bedrock!
 
--- [ SENSOR BEDROCK BARU ] --
--- Jika ada bedrock/blok keras di game yang namanya berbeda, cukup tambahkan namanya di dalam tanda kutip ini.
--- Bot akan langsung tahu itu keras, TIDAK AKAN dipukul, dan OTOMATIS LOMPAT!
-getgenv().UnbreakableBlocks = {"bedrock", "border", "door", "portal", "spawn", "locked", "unbreakable"}
+-- DAFTAR NAMA BEDROCK/PINTU (Tambahkan jika ada nama aneh di game-mu)
+local UnbreakableBlocks = {"bedrock", "border", "door", "portal", "spawn", "locked", "unbreakable"}
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 -- ========================================== --
@@ -85,7 +83,7 @@ local function ToggleCXFly(state)
 end
 
 -- ========================================== --
--- SENSOR BEDROCK & RINTANGAN
+-- SENSOR PINTAR: HANYA DETEKSI BEDROCK/PINTU
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -96,9 +94,6 @@ local function GetFilterObjects()
 end
 
 local function IsObstacle(gridX, gridY)
-    -- Jika blok ini pernah dipukul tapi gak hancur (Blacklist), anggap sebagai rintangan lompat!
-    if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return true end
-
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
     local startZ = Hitbox and Hitbox.Position.Z or 0
     local checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, startZ)
@@ -111,8 +106,8 @@ local function IsObstacle(gridX, gridY)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then
             local pName = string.lower(part.Name)
-            -- Mengecek daftar nama Bedrock dari variabel global di atas
-            for _, uName in ipairs(getgenv().UnbreakableBlocks) do
+            -- JIKA NAMANYA COCOK DENGAN DAFTAR BEDROCK -> JADIKAN PIJAKAN (LOMPATI)
+            for _, uName in ipairs(UnbreakableBlocks) do
                 if string.find(pName, uName) then return true end
             end
         end
@@ -120,9 +115,14 @@ local function IsObstacle(gridX, gridY)
     return false
 end
 
+-- ========================================== --
+-- SENSOR BREAK: APAKAH INI DIRT YANG BISA DIHANCURKAN?
+-- ========================================== --
 local function NeedsBreaking(gridX, gridY)
     if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return false end
-    if IsObstacle(gridX, gridY) then return false end -- Jika sensor mendeteksi Bedrock, JANGAN dihancurkan! Langsung return false.
+    
+    -- JIKA INI BEDROCK/PINTU, JANGAN DIHANCURKAN! SKIP LANGSUNG.
+    if IsObstacle(gridX, gridY) then return false end
 
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
     local startZ = Hitbox and Hitbox.Position.Z or 0
@@ -140,7 +140,7 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- FUNGSI JALAN NGEBUT (PERMANEN SEPERTI SEBELUMNYA)
+-- FUNGSI JALAN MURNI V43 (CEPAT TAPI AMAN SAAT START)
 -- ========================================== --
 local function WalkToGrid(tX, tY, isFast)
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
@@ -151,17 +151,17 @@ local function WalkToGrid(tX, tY, isFast)
     local currentX = math.floor(Hitbox.Position.X / getgenv().GridSize + 0.5)
     local currentY = math.floor(Hitbox.Position.Y / getgenv().GridSize + 0.5)
 
-    local stuckCounter = 0
     while (currentX ~= tX or currentY ~= tY) do
         if not getgenv().AutoClearEnabled then break end
         
         local nextX = currentX
         local nextY = currentY
 
+        -- PRIORITAS LOMPAT V28
         if currentX ~= tX then 
             local stepDir = (tX > currentX) and 1 or -1
             if IsObstacle(currentX + stepDir, currentY) then
-                nextY = currentY + 1 -- LOGIKA LOMPAT
+                nextY = currentY + 1
             else
                 nextX = currentX + stepDir
             end
@@ -172,13 +172,6 @@ local function WalkToGrid(tX, tY, isFast)
             nextY = currentY - 1 
         end
         
-        if nextX == currentX and nextY == currentY then
-            stuckCounter = stuckCounter + 1
-            if stuckCounter > 3 then break end
-        else
-            stuckCounter = 0
-        end
-
         currentX = nextX
         currentY = nextY
         
@@ -188,7 +181,7 @@ local function WalkToGrid(tX, tY, isFast)
         if HRP then HRP.CFrame = CFrame.new(newPos); HRP.Velocity = Vector3.zero end
         if PlayerMovement then pcall(function() PlayerMovement.Position = newPos end) end
         
-        -- KEPUTUSAN NGEBUT PERMANEN
+        -- KEPUTUSAN KECEPATAN V43: Cepat pas geser, Lambat pas start
         if isFast then
             task.wait() 
         else
@@ -247,7 +240,6 @@ task.spawn(function()
                         standY = blockTargetY + 1
                     end
 
-                    -- JIKA TARGET BERDIRI ADALAH BEDROCK, LOMPAT NAIK!
                     local maxUp = 0
                     while IsObstacle(standX, standY) and maxUp < 5 do
                         standY = standY + 1
@@ -257,27 +249,17 @@ task.spawn(function()
                     WalkToGrid(standX, standY, not isFirstBlock)
                     isFirstBlock = false 
                     
-                    local HitboxFolder = workspace:FindFirstChild("Hitbox")
-                    local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
-                    local lockCFrame = MyHitbox and MyHitbox.CFrame or nil
-                    
                     local tries = 0
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
                         if not NeedsBreaking(currentX, blockTargetY) then break end
-                        
-                        if MyHitbox and lockCFrame then
-                            MyHitbox.CFrame = lockCFrame
-                            MyHitbox.Velocity = Vector3.zero
-                        end
 
                         RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                         task.wait(getgenv().BreakDelay)
                         tries = tries + 1
                     end
                     
-                    -- Jika bot terpaksa memukul 100x dan tidak hancur, otomatis masuk Blacklist.
-                    -- Di grid selanjutnya, bot akan LANGSUNG TAHU ini batu dan melompatinya!
+                    -- Failsafe Blacklist tetap ada jika ada bug blok
                     if tries >= getgenv().MaxHitFailsafe then
                         getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                     end
