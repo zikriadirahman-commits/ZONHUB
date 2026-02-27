@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (BEDROCK BYPASS & NO-BLINK) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (PABRIK MOVEMENT & ANTI-BLINK) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v31 - Smart Bypass" 
+getgenv().ScriptVersion = "AutoClear v32 - Final Fix Pabrik Move" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -51,7 +51,7 @@ CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- FUNGSI TERBANG CX (ANTI GETAR FULL NOCLIP)
+-- FUNGSI TERBANG CX (ANTI JATUH & ANTI RUBBER-BAND)
 -- ========================================== --
 local function ToggleCXFly(state)
     local Char = LP.Character
@@ -65,14 +65,12 @@ local function ToggleCXFly(state)
     for _, part in ipairs(parts) do
         if part then
             if state then
-                part.CanCollide = false -- MENCEGAH BLINK karena nabrak dinding
                 local bv = part:FindFirstChild("ZON_FlyBV") or Instance.new("BodyVelocity")
                 bv.Name = "ZON_FlyBV"
                 bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
                 bv.Velocity = Vector3.zero 
                 bv.Parent = part
             else
-                part.CanCollide = true
                 if part:FindFirstChild("ZON_FlyBV") then part.ZON_FlyBV:Destroy() end
             end
         end
@@ -80,7 +78,7 @@ local function ToggleCXFly(state)
 end
 
 -- ========================================== --
--- SENSOR SMART (ANTI BEDROCK & BORDER)
+-- SENSOR SMART (DETEKSI AMAN UNTUK BERDIRI & BREAK)
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -90,8 +88,10 @@ local function GetFilterObjects()
     return filter
 end
 
--- Fungsi khusus deteksi halangan yang tak bisa dihancurkan
-local function IsSolidObstacle(gridX, gridY)
+-- Mengecek apakah posisi grid AMAN untuk diinjak (Kosong dari Bedrock/Border/Blok padat)
+local function IsPositionSafe(gridX, gridY)
+    if gridX < getgenv().AC_StartX or gridX > getgenv().AC_EndX then return false end
+    
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
     local startZ = MyHitbox and MyHitbox.Position.Z or 0
@@ -105,20 +105,18 @@ local function IsSolidObstacle(gridX, gridY)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then
             local pName = string.lower(part.Name)
-            if string.find(pName, "bedrock") or string.find(pName, "border") or string.find(pName, "portal") or string.find(pName, "door") or string.find(pName, "spawn") then
-                return true
+            if part.CanCollide or string.find(pName, "bedrock") or string.find(pName, "border") then
+                return false -- Ada halangan, tidak aman untuk berdiri!
             end
         end
     end
-    return false
+    return true
 end
 
+-- Mengecek apakah grid punya blok atau background yang perlu dihancurkan
 local function NeedsBreaking(gridX, gridY)
     if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return false end
     
-    -- JANGAN PERNAH mencoba menghancurkan Bedrock / Border
-    if IsSolidObstacle(gridX, gridY) then return false end 
-
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
     local startZ = MyHitbox and MyHitbox.Position.Z or 0
@@ -130,13 +128,20 @@ local function NeedsBreaking(gridX, gridY)
 
     local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
     for _, part in ipairs(parts) do
-        if part:IsA("BasePart") then return true end
+        if part:IsA("BasePart") then 
+            local pName = string.lower(part.Name)
+            -- Hiraukan bedrock/border/portal (bukan sesuatu yang bisa dihancurkan)
+            if string.find(pName, "bedrock") or string.find(pName, "border") or string.find(pName, "spawn") or string.find(pName, "portal") then
+                continue
+            end
+            return true 
+        end
     end
     return false
 end
 
 -- ========================================== --
--- JALAN PER-GRID SCRIPT PABRIK
+-- JALAN PER-GRID SCRIPT PABRIK (DENGAN FAILSAFE)
 -- ========================================== --
 local function WalkToGrid(tX, tY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
@@ -147,9 +152,11 @@ local function WalkToGrid(tX, tY)
     local currentX = math.floor(MyHitbox.Position.X / getgenv().GridSize + 0.5)
     local currentY = math.floor(MyHitbox.Position.Y / getgenv().GridSize + 0.5)
 
+    local failsafe = 0
     while (currentX ~= tX or currentY ~= tY) do
         if not getgenv().AutoClearEnabled then break end
         
+        -- Logic jalan asli Pabrik
         if currentX ~= tX then 
             currentX = currentX + (tX > currentX and 1 or -1)
         elseif currentY ~= tY then 
@@ -161,12 +168,14 @@ local function WalkToGrid(tX, tY)
         
         if PlayerMovement then pcall(function() PlayerMovement.Position = newWorldPos end) end
         
+        failsafe = failsafe + 1
+        if failsafe > 30 then break end -- Mencegah loop abadi (bergetar) jika posisi ditolak server
         task.wait(getgenv().StepDelay)
     end
 end
 
 -- ========================================== --
--- LOGIKA ZIG-ZAG UTAMA
+-- LOGIKA ZIG-ZAG UTAMA (THREAD)
 -- ========================================== --
 local isRunning = false
 
@@ -176,7 +185,7 @@ task.spawn(function()
             isRunning = true
             local arahKanan = true 
 
-            ToggleCXFly(true) -- Aktifkan Mode Hantu (Anti Blink)
+            ToggleCXFly(true)
 
             local highestTargetY = getgenv().AC_StartY
             for scanY = getgenv().AC_StartY, getgenv().AC_EndY, -1 do
@@ -202,16 +211,22 @@ task.spawn(function()
                     
                     if not NeedsBreaking(currentX, blockTargetY) then continue end
                     
-                    -- [ LOGIKA JUMP OBSTACLE ] --
+                    -- [ FIX: MENGHITUNG POSISI BERDIRI YANG AMAN ]
                     local standX = currentX - stepX
-                    local standY = blockTargetY
                     
-                    -- Jika posisi samping kita adalah BEDROCK, BORDER, atau Blok Utuh, BERDIRI DI ATASNYA!
-                    while IsSolidObstacle(standX, standY) or NeedsBreaking(standX, standY) do
+                    -- 1. Jangan melewati batas map! Kalau lewat, paksa dia berdiri di batas pinggirnya.
+                    if standX < getgenv().AC_StartX then standX = getgenv().AC_StartX end
+                    if standX > getgenv().AC_EndX then standX = getgenv().AC_EndX end
+                    
+                    -- 2. Jump Over Bedrock: Kalau grid sebelahnya itu Bedrock/Blok, posisikan agak ke atas
+                    local standY = blockTargetY
+                    local maxUp = 0
+                    while not IsPositionSafe(standX, standY) and maxUp < 5 do
                         standY = standY + 1
-                        if standY > blockTargetY + 5 then break end -- Failsafe batas naik
+                        maxUp = maxUp + 1
                     end
                     
+                    -- Jalankan Pabrik Movement ke posisi yang sudah 100% aman
                     WalkToGrid(standX, standY)
                     
                     -- HANCURKAN BLOCK (Insta-Next)
