@@ -1,12 +1,12 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (V62 ABSOLUTE STABILITY) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (V63 DYNAMIC EVADE & ANTI-BLINK) ]] --
 
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v62 - Absolute Math Lock" 
+getgenv().ScriptVersion = "AutoClear v63 - Dynamic Evade System" 
 
 -- ========================================== --
--- VARIABEL GLOBAL (DEFAULT)
+-- VARIABEL GLOBAL 
 -- ========================================== --
 getgenv().AutoClearEnabled = false
 getgenv().AC_StartX = 0
@@ -14,19 +14,17 @@ getgenv().AC_EndX = 100
 getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
 
--- Variabel Custom
 getgenv().AC_MaxHits = 40       
-getgenv().AC_HoverHeight = 6    -- Ketinggian stabil dikunci murni di angka ini
+getgenv().AC_HoverHeight = 6    
 getgenv().AC_HitDelay = 30      
 
 getgenv().GridSize = 4.5     
 getgenv().GlideSpeed = 2.5      
 
--- Variabel Memori
 getgenv().AC_ResumeX = nil
 getgenv().AC_ResumeY = nil
 getgenv().AC_ArahKanan = nil
-getgenv().AC_FixedZ = nil       -- [!] Kunci kedalaman agar tidak masuk/keluar layar
+getgenv().AC_FixedZ = nil       
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 
@@ -37,7 +35,6 @@ local RS = game:GetService("ReplicatedStorage")
 local UIS = game:GetService("UserInputService")
 local VirtualUser = game:GetService("VirtualUser") 
 
--- Anti AFK
 LP.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
 
 local PlayerMovement
@@ -60,14 +57,12 @@ local function CreateSlider(Parent, Text, Min, Max, Default, Var) local Frame = 
     end
 end; SliderBg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then Dragging = true; Update(i) end end); UIS.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then Dragging = false end end); UIS.InputChanged:Connect(function(i) if Dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then Update(i) end end) end
 
--- MENU UTAMA
 CreateToggle(TargetPage, "Start Auto Clear World", "AutoClearEnabled")
 CreateSlider(TargetPage, "Start X", 0, 500, 0, "AC_StartX")
 CreateSlider(TargetPage, "End X", 0, 500, 100, "AC_EndX")
 CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
--- MENU KUSTOMISASI
 CreateSlider(TargetPage, "Max Hits (Batas Sabar)", 10, 200, 40, "AC_MaxHits")
 CreateSlider(TargetPage, "Hover Height (Tinggi Melayang)", 2, 10, 6, "AC_HoverHeight") 
 CreateSlider(TargetPage, "Hit Delay ms (Kecepatan Pukul)", 0, 100, 30, "AC_HitDelay")
@@ -103,7 +98,7 @@ local function ToggleCXFly(state)
 end
 
 -- ========================================== --
--- SENSOR PINTAR: DETEKSI BLOK
+-- SENSOR PINTAR: DETEKSI BLOK & POSISI
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -162,8 +157,34 @@ local function NeedsBreaking(gridX, gridY)
     return false
 end
 
+-- [!] FUNGSI BARU: Mendeteksi apakah di titik terbang ini ada Bedrock/Pintu (Anti-Blink)
+local function IsPositionBlocked(pos)
+    local params = OverlapParams.new()
+    params.FilterDescendantsInstances = GetFilterObjects()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+
+    -- Cek area sebesar badan karakter (4x5x20)
+    local parts = workspace:GetPartBoundsInBox(CFrame.new(pos), Vector3.new(4, 5, 20), params)
+    for _, part in ipairs(parts) do
+        if part:IsA("BasePart") then
+            if math.abs(part.Position.Z - pos.Z) > 8 then continue end
+            
+            local pName = string.lower(part.Name)
+            local parentName = part.Parent and string.lower(part.Parent.Name) or ""
+            
+            if string.find(pName, "bedrock") or string.find(parentName, "bedrock") or 
+               string.find(pName, "door") or string.find(parentName, "door") or 
+               string.find(pName, "main") or string.find(parentName, "main") or
+               string.find(pName, "border") or string.find(parentName, "border") then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 -- ========================================== --
--- SISTEM GLIDE KUNCI MUTLAK
+-- SISTEM GLIDE SERVER-SYNC
 -- ========================================== --
 local function ServerSyncedGlide(targetPos)
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
@@ -174,8 +195,6 @@ local function ServerSyncedGlide(targetPos)
     
     while getgenv().AutoClearEnabled do
         local currentPos = Hitbox.Position
-        
-        -- Murni mengikuti target XYZ yang ditetapkan matematika
         local distance = (targetPos - currentPos).Magnitude
         
         if distance <= speed then
@@ -196,7 +215,7 @@ local function ServerSyncedGlide(targetPos)
 end
 
 -- ========================================== --
--- LOGIKA UTAMA (ANTI-AMBLES & ANTI-GETAR)
+-- LOGIKA UTAMA (ANTI-BLINK & DYNAMIC HEIGHT)
 -- ========================================== --
 local isRunning = false
 
@@ -205,14 +224,12 @@ task.spawn(function()
         if getgenv().AutoClearEnabled and not isRunning then
             isRunning = true
             
-            -- Set up initial Memory & Z-Lock
             local initialHitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
             if getgenv().AC_ResumeX == nil then 
                 getgenv().AC_ResumeY = getgenv().AC_StartY
                 getgenv().AC_ArahKanan = true
                 getgenv().AC_ResumeX = getgenv().AC_StartX
                 
-                -- KUNCI KEDALAMAN (Z) DI AWAL AGAR TIDAK MELENCENG!
                 if initialHitbox then
                     getgenv().AC_FixedZ = initialHitbox.Position.Z
                 end
@@ -239,85 +256,84 @@ task.spawn(function()
                         
                         local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
                         local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+                        
+                        -- Titik Pendaratan Default
                         local hoverY_Grid = blockTargetY + 1
+                        local targetY_Pos = (hoverY_Grid * getgenv().GridSize) + getgenv().AC_HoverHeight
+                        local baseHoverPos = Vector3.new(currentX * getgenv().GridSize, targetY_Pos, absoluteZ)
+                        local finalHoverPos = baseHoverPos
 
                         -- ========================================== --
-                        -- LOGIKA TEROWONGAN (MUNDUR 1 BLOK)
+                        -- [!] DYNAMIC EVADE SYSTEM (PENGHINDAR TABRAKAN)
+                        -- Mengecek apakah tempat melayang kita nabrak Bedrock/Door
                         -- ========================================== --
-                        if IsUnbreakable(currentX, hoverY_Grid) then
-                            local standX = currentX - stepX
+                        if IsPositionBlocked(finalHoverPos) then
+                            local foundSafe = false
                             
-                            -- [!] TITIK MATEMATIKA MUTLAK UNTUK TEROWONGAN
-                            local tunnelPos = Vector3.new(standX * getgenv().GridSize, blockTargetY * getgenv().GridSize, absoluteZ)
-                            local perfectTunnelCF = CFrame.new(tunnelPos)
-
-                            ServerSyncedGlide(tunnelPos)
-                            
-                            if Hitbox then Hitbox.Anchored = true end
-                            if HRP then HRP.Anchored = true end
-
-                            local tunnelFailsafe = 0
-                            while NeedsBreaking(currentX, blockTargetY) and getgenv().AutoClearEnabled do
-                                
-                                -- KUNCI MATI KE TITIK MATEMATIKA (0% GETAR & TIDAK AKAN AMBLES)
-                                if Hitbox then Hitbox.CFrame = perfectTunnelCF; Hitbox.Velocity = Vector3.zero end
-                                if HRP then HRP.CFrame = perfectTunnelCF; HRP.Velocity = Vector3.zero end
-                                if PlayerMovement then pcall(function() PlayerMovement.Position = tunnelPos end) end
-                                
-                                if IsUnbreakable(currentX, blockTargetY) then break end
-                                
-                                RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
-                                
-                                tunnelFailsafe = tunnelFailsafe + 1
-                                if tunnelFailsafe > getgenv().AC_MaxHits then break end
-                                task.wait(getgenv().AC_HitDelay / 1000)
-                            end
-                            
-                            if Hitbox then Hitbox.Anchored = false end
-                            if HRP then HRP.Anchored = false end
-                            
-                        else
-                            -- ========================================== --
-                            -- GLIDE NORMAL DI ATAS
-                            -- ========================================== --
-                            local targetY_Pos = (hoverY_Grid * getgenv().GridSize) + getgenv().AC_HoverHeight
-                            
-                            -- [!] TITIK MATEMATIKA MUTLAK UNTUK MELAYANG
-                            local hoverPos = Vector3.new(currentX * getgenv().GridSize, targetY_Pos, absoluteZ)
-                            local perfectHoverCF = CFrame.new(hoverPos)
-
-                            ServerSyncedGlide(hoverPos)
-
-                            if Hitbox then Hitbox.Anchored = true end
-                            if HRP then HRP.Anchored = true end
-
-                            local extremeFailsafe = 0
-                            while NeedsBreaking(currentX, blockTargetY) and getgenv().AutoClearEnabled do
-                                
-                                -- KUNCI MATI KE TITIK MATEMATIKA (0% GETAR & TIDAK AKAN AMBLES)
-                                if Hitbox then Hitbox.CFrame = perfectHoverCF; Hitbox.Velocity = Vector3.zero end
-                                if HRP then HRP.CFrame = perfectHoverCF; HRP.Velocity = Vector3.zero end
-                                if PlayerMovement then pcall(function() PlayerMovement.Position = hoverPos end) end
-                                
-                                if IsUnbreakable(currentX, blockTargetY) then
-                                    getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
+                            -- 1. Coba MENGHINDAR KE ATAS (Naik 1 sampai 3 Blok)
+                            for i = 1, 3 do
+                                local testUp = baseHoverPos + Vector3.new(0, i * getgenv().GridSize, 0)
+                                if not IsPositionBlocked(testUp) then
+                                    finalHoverPos = testUp
+                                    foundSafe = true
                                     break
                                 end
-                                
-                                RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
-                                
-                                extremeFailsafe = extremeFailsafe + 1
-                                if extremeFailsafe > getgenv().AC_MaxHits then 
-                                    getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
-                                    break
-                                end
-                                
-                                task.wait(getgenv().AC_HitDelay / 1000)
                             end
                             
-                            if Hitbox then Hitbox.Anchored = false end
-                            if HRP then HRP.Anchored = false end
+                            -- 2. Coba MENGHINDAR KE BAWAH (Turun 1 sampai 2 Blok)
+                            if not foundSafe then
+                                for i = 1, 2 do
+                                    local testDown = baseHoverPos - Vector3.new(0, i * getgenv().GridSize, 0)
+                                    if not IsPositionBlocked(testDown) then
+                                        finalHoverPos = testDown
+                                        foundSafe = true
+                                        break
+                                    end
+                                end
+                            end
+                            
+                            -- 3. Kalau Atas Bawah Penuh (Terjepit), Masuk Mode Terowongan!
+                            if not foundSafe then
+                                local standX = currentX - stepX
+                                finalHoverPos = Vector3.new(standX * getgenv().GridSize, blockTargetY * getgenv().GridSize, absoluteZ)
+                            end
                         end
+
+                        local perfectCF = CFrame.new(finalHoverPos)
+                        ServerSyncedGlide(finalHoverPos)
+                        
+                        if Hitbox then Hitbox.Anchored = true end
+                        if HRP then HRP.Anchored = true end
+
+                        -- ========================================== --
+                        -- STRICT BREAK LOOP (KUNCI MATI ANTI-GETAR)
+                        -- ========================================== --
+                        local extremeFailsafe = 0
+                        while NeedsBreaking(currentX, blockTargetY) and getgenv().AutoClearEnabled do
+                            
+                            -- Mengunci koordinat di titik aman yang sudah diseleksi oleh Dynamic Evade
+                            if Hitbox then Hitbox.CFrame = perfectCF; Hitbox.Velocity = Vector3.zero end
+                            if HRP then HRP.CFrame = perfectCF; HRP.Velocity = Vector3.zero end
+                            if PlayerMovement then pcall(function() PlayerMovement.Position = finalHoverPos end) end
+                            
+                            if IsUnbreakable(currentX, blockTargetY) then
+                                getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
+                                break
+                            end
+                            
+                            RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
+                            
+                            extremeFailsafe = extremeFailsafe + 1
+                            if extremeFailsafe > getgenv().AC_MaxHits then 
+                                getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
+                                break
+                            end
+                            
+                            task.wait(getgenv().AC_HitDelay / 1000)
+                        end
+                        
+                        if Hitbox then Hitbox.Anchored = false end
+                        if HRP then HRP.Anchored = false end
                     end
 
                     if getgenv().AutoClearEnabled then
