@@ -1,8 +1,50 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (V44 GLIDE EDITION + STRICT BREAK) ]] --
-local TargetPage = ... 
-if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
+-- [[ ZONHUB - AUTOCLEAR MODULE (V44 GLIDE EDITION + STANDALONE UI) ]] --
 
 getgenv().ScriptVersion = "AutoClear v44 - Pure Glide & Strict Break" 
+
+-- ========================================== --
+-- MEMBUAT MENU UI SENDIRI (STANDALONE)
+-- ========================================== --
+local CoreGui = game:GetService("CoreGui")
+local oldGui = CoreGui:FindFirstChild("ZonHub_AutoClear_UI")
+if oldGui then oldGui:Destroy() end -- Hapus UI lama jika di-execute ulang
+
+local sg = Instance.new("ScreenGui")
+sg.Name = "ZonHub_AutoClear_UI"
+sg.Parent = CoreGui
+
+local TargetPage = Instance.new("Frame")
+TargetPage.Name = "MainFrame"
+TargetPage.Parent = sg
+TargetPage.Size = UDim2.new(0, 250, 0, 310)
+TargetPage.Position = UDim2.new(0, 20, 0.4, 0)
+TargetPage.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+TargetPage.Active = true
+TargetPage.Draggable = true -- Menu bisa digeser-geser
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = TargetPage
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = TargetPage
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 6)
+
+local UIPadding = Instance.new("UIPadding")
+UIPadding.Parent = TargetPage
+UIPadding.PaddingTop = UDim.new(0, 10)
+UIPadding.PaddingLeft = UDim.new(0, 8)
+UIPadding.PaddingRight = UDim.new(0, 8)
+
+local Title = Instance.new("TextLabel")
+Title.Parent = TargetPage
+Title.Size = UDim2.new(1, 0, 0, 20)
+Title.BackgroundTransparency = 1
+Title.Text = "ZonHub AutoClear v44"
+Title.TextColor3 = Color3.fromRGB(140, 80, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 14
 
 -- ========================================== --
 -- VARIABEL GLOBAL
@@ -18,8 +60,8 @@ getgenv().BreakDelay = 0.03
 getgenv().StepDelay = 0.1     
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
--- ========================================== --
 
+-- ========================================== --
 local Players = game:GetService("Players")
 local LP = Players.LocalPlayer
 local RS = game:GetService("ReplicatedStorage")
@@ -40,8 +82,8 @@ local RemoteBreak = Remotes:WaitForChild("PlayerFist")
 -- ========================================== --
 local Theme = { Item = Color3.fromRGB(45, 45, 45), Text = Color3.fromRGB(255, 255, 255), Purple = Color3.fromRGB(140, 80, 255) }
 
-local function CreateToggle(Parent, Text, Var) local Btn = Instance.new("TextButton", Parent); Btn.BackgroundColor3 = Theme.Item; Btn.Size = UDim2.new(1, -10, 0, 35); Btn.Text = ""; Btn.AutoButtonColor = false; local C = Instance.new("UICorner", Btn); C.CornerRadius = UDim.new(0, 6); local T = Instance.new("TextLabel", Btn); T.Text = Text; T.TextColor3 = Theme.Text; T.Font = Enum.Font.GothamSemibold; T.TextSize = 12; T.Size = UDim2.new(1, -40, 1, 0); T.Position = UDim2.new(0, 10, 0, 0); T.BackgroundTransparency = 1; T.TextXAlignment = Enum.TextXAlignment.Left; local IndBg = Instance.new("Frame", Btn); IndBg.Size = UDim2.new(0, 36, 0, 18); IndBg.Position = UDim2.new(1, -45, 0.5, -9); IndBg.BackgroundColor3 = Color3.fromRGB(30,30,30); local IC = Instance.new("UICorner", IndBg); IC.CornerRadius = UDim.new(1,0); local Dot = Instance.new("Frame", IndBg); Dot.Size = UDim2.new(0, 14, 0, 14); Dot.Position = UDim2.new(0, 2, 0.5, -7); Dot.BackgroundColor3 = Color3.fromRGB(100,100,100); local DC = Instance.new("UICorner", Dot); DC.CornerRadius = UDim.new(1,0); Btn.MouseButton1Click:Connect(function() getgenv()[Var] = not getgenv()[Var]; if getgenv()[Var] then Dot:TweenPosition(UDim2.new(1, -16, 0.5, -7), "Out", "Quad", 0.2, true); Dot.BackgroundColor3 = Color3.new(1,1,1); IndBg.BackgroundColor3 = Theme.Purple else Dot:TweenPosition(UDim2.new(0, 2, 0.5, -7), "Out", "Quad", 0.2, true); Dot.BackgroundColor3 = Color3.fromRGB(100,100,100); IndBg.BackgroundColor3 = Color3.fromRGB(30,30,30) end end) end
-local function CreateSlider(Parent, Text, Min, Max, Default, Var) local Frame = Instance.new("Frame", Parent); Frame.BackgroundColor3 = Theme.Item; Frame.Size = UDim2.new(1, -10, 0, 45); local C = Instance.new("UICorner", Frame); C.CornerRadius = UDim.new(0, 6); local Label = Instance.new("TextLabel", Frame); Label.Text = Text .. ": " .. Default; Label.TextColor3 = Theme.Text; Label.BackgroundTransparency = 1; Label.Size = UDim2.new(1, 0, 0, 20); Label.Position = UDim2.new(0, 10, 0, 2); Label.Font = Enum.Font.GothamSemibold; Label.TextSize = 12; Label.TextXAlignment = Enum.TextXAlignment.Left; local SliderBg = Instance.new("TextButton", Frame); SliderBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30); SliderBg.Position = UDim2.new(0, 10, 0, 28); SliderBg.Size = UDim2.new(1, -20, 0, 6); SliderBg.Text = ""; SliderBg.AutoButtonColor = false; local SC = Instance.new("UICorner", SliderBg); SC.CornerRadius = UDim.new(1,0); local Fill = Instance.new("Frame", SliderBg); Fill.BackgroundColor3 = Theme.Purple; Fill.Size = UDim2.new((Default-Min)/(Max-Min), 0, 1, 0); local FC = Instance.new("UICorner", Fill); FC.CornerRadius = UDim.new(1,0); local Dragging = false; local function Update(input) local SizeX = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1); local Val = math.floor(Min + ((Max - Min) * SizeX)); Fill.Size = UDim2.new(SizeX, 0, 1, 0); Label.Text = Text .. ": " .. Val; getgenv()[Var] = Val end; SliderBg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then Dragging = true; Update(i) end end); UIS.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then Dragging = false end end); UIS.InputChanged:Connect(function(i) if Dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then Update(i) end end) end
+local function CreateToggle(Parent, Text, Var) local Btn = Instance.new("TextButton", Parent); Btn.BackgroundColor3 = Theme.Item; Btn.Size = UDim2.new(1, 0, 0, 35); Btn.Text = ""; Btn.AutoButtonColor = false; local C = Instance.new("UICorner", Btn); C.CornerRadius = UDim.new(0, 6); local T = Instance.new("TextLabel", Btn); T.Text = Text; T.TextColor3 = Theme.Text; T.Font = Enum.Font.GothamSemibold; T.TextSize = 12; T.Size = UDim2.new(1, -40, 1, 0); T.Position = UDim2.new(0, 10, 0, 0); T.BackgroundTransparency = 1; T.TextXAlignment = Enum.TextXAlignment.Left; local IndBg = Instance.new("Frame", Btn); IndBg.Size = UDim2.new(0, 36, 0, 18); IndBg.Position = UDim2.new(1, -45, 0.5, -9); IndBg.BackgroundColor3 = Color3.fromRGB(30,30,30); local IC = Instance.new("UICorner", IndBg); IC.CornerRadius = UDim.new(1,0); local Dot = Instance.new("Frame", IndBg); Dot.Size = UDim2.new(0, 14, 0, 14); Dot.Position = UDim2.new(0, 2, 0.5, -7); Dot.BackgroundColor3 = Color3.fromRGB(100,100,100); local DC = Instance.new("UICorner", Dot); DC.CornerRadius = UDim.new(1,0); Btn.MouseButton1Click:Connect(function() getgenv()[Var] = not getgenv()[Var]; if getgenv()[Var] then Dot:TweenPosition(UDim2.new(1, -16, 0.5, -7), "Out", "Quad", 0.2, true); Dot.BackgroundColor3 = Color3.new(1,1,1); IndBg.BackgroundColor3 = Theme.Purple else Dot:TweenPosition(UDim2.new(0, 2, 0.5, -7), "Out", "Quad", 0.2, true); Dot.BackgroundColor3 = Color3.fromRGB(100,100,100); IndBg.BackgroundColor3 = Color3.fromRGB(30,30,30) end end) end
+local function CreateSlider(Parent, Text, Min, Max, Default, Var) local Frame = Instance.new("Frame", Parent); Frame.BackgroundColor3 = Theme.Item; Frame.Size = UDim2.new(1, 0, 0, 45); local C = Instance.new("UICorner", Frame); C.CornerRadius = UDim.new(0, 6); local Label = Instance.new("TextLabel", Frame); Label.Text = Text .. ": " .. Default; Label.TextColor3 = Theme.Text; Label.BackgroundTransparency = 1; Label.Size = UDim2.new(1, 0, 0, 20); Label.Position = UDim2.new(0, 10, 0, 2); Label.Font = Enum.Font.GothamSemibold; Label.TextSize = 12; Label.TextXAlignment = Enum.TextXAlignment.Left; local SliderBg = Instance.new("TextButton", Frame); SliderBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30); SliderBg.Position = UDim2.new(0, 10, 0, 28); SliderBg.Size = UDim2.new(1, -20, 0, 6); SliderBg.Text = ""; SliderBg.AutoButtonColor = false; local SC = Instance.new("UICorner", SliderBg); SC.CornerRadius = UDim.new(1,0); local Fill = Instance.new("Frame", SliderBg); Fill.BackgroundColor3 = Theme.Purple; Fill.Size = UDim2.new((Default-Min)/(Max-Min), 0, 1, 0); local FC = Instance.new("UICorner", Fill); FC.CornerRadius = UDim.new(1,0); local Dragging = false; local function Update(input) local SizeX = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1); local Val = math.floor(Min + ((Max - Min) * SizeX)); Fill.Size = UDim2.new(SizeX, 0, 1, 0); Label.Text = Text .. ": " .. Val; getgenv()[Var] = Val end; SliderBg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then Dragging = true; Update(i) end end); UIS.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then Dragging = false end end); UIS.InputChanged:Connect(function(i) if Dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then Update(i) end end) end
 
 CreateToggle(TargetPage, "Start Auto Clear World", "AutoClearEnabled")
 CreateSlider(TargetPage, "Start X", 0, 500, 0, "AC_StartX")
@@ -146,7 +188,7 @@ local function NeedsBreaking(gridX, gridY)
             if string.find(pName, "door") or string.find(pName, "portal") or string.find(pName, "border") or string.find(pName, "spawn") then
                 continue
             end
-            return true -- Mengembalikan true selama MASIH ADA block atau background
+            return true -- True selama MASIH ADA block atau background
         end
     end
     return false
@@ -212,16 +254,13 @@ task.spawn(function()
                 for currentX = startX, endX, stepX do
                     if not getgenv().AutoClearEnabled then break end
                     
-                    -- Kalau kosong/sudah bersih, skip ke block sampingnya
                     if not NeedsBreaking(currentX, blockTargetY) then continue end
                     
-                    -- DETEKSI BEDROCK: Skip & Blacklist langsung, tidak perlu mukul atau lompat
                     if IsBedrock(currentX, blockTargetY) then
                         getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                         continue 
                     end
 
-                    -- CARI POSISI GLIDE DI ATAS DIRT (Hover Position)
                     local hoverY = blockTargetY + 1
                     local maxUp = 0
                     while IsObstacle(currentX, hoverY) and maxUp < 5 do
@@ -230,24 +269,17 @@ task.spawn(function()
                     end
                     
                     SetGlidePosition(currentX, hoverY)
-                    task.wait(getgenv().StepDelay) -- Jeda sebentar agar transisi geser terlihat mulus
+                    task.wait(getgenv().StepDelay) 
                     
-                    -- ========================================== --
-                    -- STRICT BREAK LOOP (HANCURKAN SAMPAI AKAR)
-                    -- ========================================== --
                     local extremeFailsafe = 0
 
                     repeat
                         if not getgenv().AutoClearEnabled then break end
                         
-                        -- Kunci CFrame terus menerus supaya tidak geser/jatuh saat memukul
                         SetGlidePosition(currentX, hoverY)
-
-                        -- Pukul block di bawah kita
                         RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                         task.wait(getgenv().BreakDelay)
                         
-                        -- Cek darurat kalau tiba-tiba yang dipukul itu ternyata bedrock (glitch render game)
                         if IsBedrock(currentX, blockTargetY) then
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                             break
@@ -255,13 +287,11 @@ task.spawn(function()
 
                         extremeFailsafe = extremeFailsafe + 1
                         if extremeFailsafe > 200 then
-                            -- Failsafe absolut jika internet RTO/block benar-benar nge-bug server-side
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                             break
                         end
 
                     until not NeedsBreaking(currentX, blockTargetY) 
-                    -- LOOP DI ATAS TIDAK AKAN BERHENTI SAMPAI DIRT & BACKGROUND HILANG (NeedsBreaking = false)
                 end
                 
                 arahKanan = not arahKanan 
