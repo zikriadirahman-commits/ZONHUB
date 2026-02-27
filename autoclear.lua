@@ -1,9 +1,9 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (V52 PERFECT BASE & INSTANT NEXT) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (V49 RESTORED + FAST SKIP) ]] --
 
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v52 - Server Glide & Instant Next" 
+getgenv().ScriptVersion = "AutoClear v49 - Restored & Fast Next" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL
@@ -17,6 +17,10 @@ getgenv().AC_EndY = 6
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.03  
 getgenv().GlideSpeed = 1.5   -- Standar mulus (jangan terlalu besar agar tidak teleport)
+
+-- [!] KUNCI INSTAN PINDAH: Batas maksimal pukulan per kotak. 
+-- 30 pukulan = sekitar 0.9 detik. Sangat cepat untuk pindah!
+getgenv().MaxHits = 30 
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 
@@ -80,7 +84,7 @@ local function ToggleCXFly(state)
 end
 
 -- ========================================== --
--- SENSOR PINTAR BLOK (DENGAN FILTER UKURAN & WUJUD)
+-- SENSOR PINTAR BLOK & BEDROCK (DIKEMBALIKAN 100%)
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -99,11 +103,10 @@ local function IsBedrock(gridX, gridY)
     params.FilterDescendantsInstances = GetFilterObjects()
     params.FilterType = Enum.RaycastFilterType.Exclude
 
+    -- Sensor DIKEMBALIKAN ke 3x3x50 agar pasti work
     local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") and string.match(string.lower(part.Name), "bedrock") then
-            -- Abaikan invisible wall bedrock atau border raksasa
-            if part.Transparency == 1 or part.Size.X > 20 or part.Size.Y > 20 then continue end
             return true
         end
     end
@@ -124,17 +127,11 @@ local function NeedsBreaking(gridX, gridY)
     local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then 
-            
-            -- [!] KUNCI INSTANT NEXT: Abaikan background/skybox raksasa dan dinding tak terlihat
-            if part.Transparency == 1 then continue end
-            if part.Size.X > 20 or part.Size.Y > 20 then continue end
-            
             local pName = string.lower(part.Name)
             if string.find(pName, "door") or string.find(pName, "portal") or string.find(pName, "border") or string.find(pName, "spawn") then
                 continue
             end
-            
-            return true -- Berarti benar-benar Dirt / Background kecil yang masih ada
+            return true 
         end
     end
     return false
@@ -233,26 +230,24 @@ task.spawn(function()
                     local lockPos = Vector3.new(currentX * getgenv().GridSize, hoverY * getgenv().GridSize, lockZ)
 
                     -- ========================================== --
-                    -- STRICT BREAK LOOP (INSTAN PINDAH)
+                    -- STRICT BREAK LOOP (FAST SKIP)
                     -- ========================================== --
                     while NeedsBreaking(currentX, blockTargetY) and getgenv().AutoClearEnabled do
                         
-                        -- Mengunci koordinat karakter secara absolut di tempat
                         if Hitbox then Hitbox.CFrame = CFrame.new(lockPos); Hitbox.Velocity = Vector3.zero end
                         if HRP then HRP.CFrame = CFrame.new(lockPos); HRP.Velocity = Vector3.zero end
                         if PlayerMovement then pcall(function() PlayerMovement.Position = lockPos end) end
                         
-                        -- Cek darurat Bedrock
                         if IsBedrock(currentX, blockTargetY) then
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                             break
                         end
                         
-                        -- Lempar pukulan ke server
                         RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                         
                         extremeFailsafe = extremeFailsafe + 1
-                        if extremeFailsafe > 150 then -- Sekitar 4 detik maksimal per blok jika lag parah
+                        -- [!] MEMAKAI BATAS BARU YANG LEBIH CEPAT (30 Hits = 0.9 detik)
+                        if extremeFailsafe > getgenv().MaxHits then 
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                             break
                         end
