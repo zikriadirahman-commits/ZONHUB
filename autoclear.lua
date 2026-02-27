@@ -1,9 +1,9 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (V46 REAL PHYSICS GLIDE) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (V47 REAL SMOOTH GLIDE & STRICT BREAK) ]] --
 
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v46 - Real Glide & Strict Break" 
+getgenv().ScriptVersion = "AutoClear v47 - Server-Synced Glide & Strict Break" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL
@@ -16,7 +16,9 @@ getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.03  
-getgenv().GlideSpeed = 20    -- Semakin kecil makin lambat, makin besar makin cepat
+
+-- Kecepatan Glide: Semakin kecil semakin lambat & mulus. (1.5 adalah standar aman)
+getgenv().GlideSpeed = 1.5   
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 
@@ -49,6 +51,35 @@ CreateSlider(TargetPage, "Start X", 0, 500, 0, "AC_StartX")
 CreateSlider(TargetPage, "End X", 0, 500, 100, "AC_EndX")
 CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
+
+-- ========================================== --
+-- FUNGSI TERBANG CX (MURNI V43 BAWAAN)
+-- ========================================== --
+local function ToggleCXFly(state)
+    local Char = LP.Character
+    local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
+    local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
+    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
+
+    if Hum then Hum.PlatformStand = state end
+
+    local parts = {HRP, Hitbox}
+    for _, part in ipairs(parts) do
+        if part then
+            if state then
+                part.CanCollide = false 
+                local bv = part:FindFirstChild("ZON_FlyBV") or Instance.new("BodyVelocity")
+                bv.Name = "ZON_FlyBV"
+                bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+                bv.Velocity = Vector3.zero 
+                bv.Parent = part
+            else
+                part.CanCollide = true
+                if part:FindFirstChild("ZON_FlyBV") then part.ZON_FlyBV:Destroy() end
+            end
+        end
+    end
+end
 
 -- ========================================== --
 -- SENSOR PINTAR BLOK & BEDROCK
@@ -104,68 +135,47 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- SISTEM TERBANG FISIK (ANTI VISUAL BUG)
+-- SISTEM GLIDE SERVER-SYNC (ANTI VISUAL BUG)
 -- ========================================== --
-local function TogglePhysicsFly(state)
-    local Char = LP.Character
-    local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
-    local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
-    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-
-    if Hum then Hum.PlatformStand = state end -- Bikin karakter rebah/melayang
-
-    local parts = {HRP, Hitbox}
-    for _, part in ipairs(parts) do
-        if part then
-            -- PASTIKAN ANCHORED FALSE AGAR SERVER MENDETEKSI PERGERAKAN
-            part.Anchored = false 
-            
-            if state then
-                part.CanCollide = false 
-                -- Gunakan BodyVelocity untuk menahan karakter di udara
-                local bv = part:FindFirstChild("ZON_FlyBV") or Instance.new("BodyVelocity")
-                bv.Name = "ZON_FlyBV"
-                bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-                bv.Velocity = Vector3.zero 
-                bv.Parent = part
-            else
-                part.CanCollide = true
-                if part:FindFirstChild("ZON_FlyBV") then part.ZON_FlyBV:Destroy() end
-            end
-        end
-    end
-end
-
--- Fungsi jalan mulus yang direkam server (tanpa teleport / tween visual)
-local function RealSmoothGlideTo(gX, gY)
+local function ServerSyncedGlide(gX, gY)
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
     local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
     if not Hitbox or not HRP then return end
 
     local startZ = Hitbox.Position.Z
     local targetPos = Vector3.new(gX * getgenv().GridSize, gY * getgenv().GridSize, startZ)
-    local startPos = Hitbox.Position
     
-    local distance = (startPos - targetPos).Magnitude
-    local speed = getgenv().GlideSpeed or 20
+    local speed = getgenv().GlideSpeed 
     
-    -- Hitung jumlah langkah (frame) berdasarkan jarak
-    local steps = math.floor(distance * (60 / speed))
-    if steps < 1 then steps = 1 end
-    
-    -- Geser posisi sedikit demi sedikit agar server memprosesnya sebagai "jalan"
-    for i = 1, steps do
-        if not getgenv().AutoClearEnabled then break end
+    while getgenv().AutoClearEnabled do
+        local currentPos = Hitbox.Position
+        local distance = (targetPos - currentPos).Magnitude
         
-        local alpha = i / steps
-        local currentPos = startPos:Lerp(targetPos, alpha)
-        local newCFrame = CFrame.new(currentPos)
+        if distance <= speed then
+            -- Snap akhir ketika sudah dekat
+            Hitbox.CFrame = CFrame.new(targetPos)
+            Hitbox.Velocity = Vector3.zero
+            HRP.CFrame = CFrame.new(targetPos)
+            HRP.Velocity = Vector3.zero
+            -- UPDATE SERVER
+            if PlayerMovement then pcall(function() PlayerMovement.Position = targetPos end) end
+            break
+        else
+            -- Bergerak perlahan mendekati target
+            local direction = (targetPos - currentPos).Unit
+            local nextPos = currentPos + (direction * speed)
+            
+            Hitbox.CFrame = CFrame.new(nextPos)
+            Hitbox.Velocity = Vector3.zero
+            HRP.CFrame = CFrame.new(nextPos)
+            HRP.Velocity = Vector3.zero
+            
+            -- INI KUNCI UTAMANYA: Mengirim pergerakan ke server setiap frame
+            -- Sehingga server tahu kita BENAR-BENAR bergerak, bukan cuma visual
+            if PlayerMovement then pcall(function() PlayerMovement.Position = nextPos end) end
+        end
         
-        if Hitbox then Hitbox.CFrame = newCFrame; Hitbox.Velocity = Vector3.zero end
-        if HRP then HRP.CFrame = newCFrame; HRP.Velocity = Vector3.zero end
-        if PlayerMovement then pcall(function() PlayerMovement.Position = currentPos end) end
-        
-        task.wait() -- Jeda 1 frame
+        task.wait() -- Tunggu 1 frame
     end
 end
 
@@ -180,8 +190,8 @@ task.spawn(function()
             isRunning = true
             local arahKanan = true 
 
-            -- Aktifkan sistem terbang fisik
-            TogglePhysicsFly(true)
+            -- Menggunakan sistem terbang asli yang aman
+            ToggleCXFly(true)
 
             local highestTargetY = getgenv().AC_StartY
             for scanY = getgenv().AC_StartY, getgenv().AC_EndY, -1 do
@@ -215,9 +225,9 @@ task.spawn(function()
                         continue 
                     end
 
-                    -- GLIDE FISIK KE ATAS BLOK TARGET
+                    -- MELUNCUR DARI POSISI SEKARANG KE TARGET (X=0 dan seterusnya)
                     local hoverY = blockTargetY + 1
-                    RealSmoothGlideTo(currentX, hoverY)
+                    ServerSyncedGlide(currentX, hoverY)
                     
                     local extremeFailsafe = 0
 
@@ -226,6 +236,9 @@ task.spawn(function()
                     -- ========================================== --
                     repeat
                         if not getgenv().AutoClearEnabled then break end
+                        
+                        -- Pastikan tetap di posisi ini
+                        ServerSyncedGlide(currentX, hoverY)
                         
                         RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                         task.wait(getgenv().BreakDelay)
@@ -250,8 +263,7 @@ task.spawn(function()
             isRunning = false
             if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
             
-            -- Kembalikan gravitasi normal
-            TogglePhysicsFly(false)
+            ToggleCXFly(false)
         end
     end
 end)
