@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (ULTRA FAST TRANSITION FIX) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (SMART DUAL-SPEED FIX) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v39 - Ultra Fast Next" 
+getgenv().ScriptVersion = "AutoClear v40 - Dual Speed Perfect" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -14,8 +14,9 @@ getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
-getgenv().BreakDelay = 0.03   -- Kecepatan pukul
-getgenv().StartDelay = 0.15   -- Waktu lerp (santai) untuk jarak jauh
+getgenv().BreakDelay = 0.03       -- Kecepatan pukul
+getgenv().NormalStepDelay = 0.15  -- [LOGIKA 1] Kecepatan jalan santai (Pas awal start & pindah baris)
+getgenv().FastStepDelay = 0.04    -- [LOGIKA 2] Kecepatan NGEBUT (Pas geser ke sebelahnya)
 getgenv().MaxHitFailsafe = 100 
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
@@ -135,48 +136,47 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- DUAL LOGIC JALAN (REVISI ULTRA CEPAT)
+-- PERGERAKAN PER-GRID PABRIK (DENGAN 2 KECEPATAN)
 -- ========================================== --
-local function WalkToGrid(tX, tY, isFastMove)
+local function WalkToGrid(tX, tY, isFast)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
     if not MyHitbox then return end
 
-    local targetPos = Vector3.new(tX * getgenv().GridSize, tY * getgenv().GridSize, MyHitbox.Position.Z)
-    local startPos = MyHitbox.Position
-    local distance = (targetPos - startPos).Magnitude
-    
-    -- Kalau sudah pas di titik, gausah jalan
-    if distance < 0.5 then
-        MyHitbox.CFrame = CFrame.new(targetPos)
-        if PlayerMovement then pcall(function() PlayerMovement.Position = targetPos end) end
-        return
-    end
-    
-    if isFastMove then
-        -- [ NGEBUT ] Membelah pergerakan ke target hanya dalam 2 frame cepat (Batas maksimal aman anti-cheat)
-        local steps = 2
+    local startZ = MyHitbox.Position.Z
+    local currentX = math.floor(MyHitbox.Position.X / getgenv().GridSize + 0.5)
+    local currentY = math.floor(MyHitbox.Position.Y / getgenv().GridSize + 0.5)
+
+    local failsafe = 0
+    while (currentX ~= tX or currentY ~= tY) do
+        if not getgenv().AutoClearEnabled then break end
+        
+        -- Bergerak 1 grid demi 1 grid persis seperti Pabrik
+        if currentX ~= tX then 
+            currentX = currentX + (tX > currentX and 1 or -1)
+        elseif currentY ~= tY then 
+            currentY = currentY + (tY > currentY and 1 or -1) 
+        end
+        
+        local targetWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
+        local startPos = MyHitbox.Position
+        
+        -- [ PENENTUAN KECEPATAN ]
+        local timeToWait = isFast and getgenv().FastStepDelay or getgenv().NormalStepDelay
+        local steps = isFast and 5 or 15 -- Cepat pakai 5 frame, Santai pakai 15 frame
+        
         for i = 1, steps do
             if not getgenv().AutoClearEnabled then break end
             
-            local lerpPos = startPos:Lerp(targetPos, i / steps)
+            local lerpPos = startPos:Lerp(targetWorldPos, i / steps)
             MyHitbox.CFrame = CFrame.new(lerpPos)
             if PlayerMovement then pcall(function() PlayerMovement.Position = lerpPos end) end
             
-            task.wait() -- Tunggu seminimal mungkin (0.01 detik) agar nampak instan tapi server nerima
+            task.wait(timeToWait / steps) 
         end
-    else
-        -- [ SANTAI ] Mulus untuk jarak jauh (Lebih dari 1 blok)
-        local steps = 15
-        for i = 1, steps do
-            if not getgenv().AutoClearEnabled then break end
-            
-            local lerpPos = startPos:Lerp(targetPos, i / steps)
-            MyHitbox.CFrame = CFrame.new(lerpPos)
-            if PlayerMovement then pcall(function() PlayerMovement.Position = lerpPos end) end
-            
-            task.wait(getgenv().StartDelay / steps)
-        end
+        
+        failsafe = failsafe + 1
+        if failsafe > 30 then break end 
     end
 end
 
@@ -212,6 +212,9 @@ task.spawn(function()
                 local startX, endX, stepX = getgenv().AC_StartX, getgenv().AC_EndX, 1
                 if not arahKanan then startX, endX, stepX = getgenv().AC_EndX, getgenv().AC_StartX, -1 end
 
+                -- Variabel Penanda Awal Baris
+                local isFirstBlock = true 
+
                 for currentX = startX, endX, stepX do
                     if not getgenv().AutoClearEnabled then break end
                     
@@ -220,6 +223,7 @@ task.spawn(function()
                     local standX = currentX - stepX
                     local standY = blockTargetY
 
+                    -- LOGIKA X=0 & BEDROCK/DOOR
                     if standX < getgenv().AC_StartX or standX > getgenv().AC_EndX then
                         standX = currentX
                         standY = blockTargetY + 1
@@ -231,31 +235,23 @@ task.spawn(function()
                         end
                     end
                     
+                    -- JALANKAN LOGIKA JALAN PINTAR
+                    -- Jika ini blok pertama yang dihampiri, jalan SANTAI.
+                    -- Setelah memecahkan blok pertama, sisanya akan jalan NGEBUT.
+                    WalkToGrid(standX, standY, not isFirstBlock)
+                    isFirstBlock = false -- Tandai bahwa blok pertama sudah dilewati
+                    
                     local HitboxFolder = workspace:FindFirstChild("Hitbox")
                     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
-                    local useFastMove = false
-                    
-                    if MyHitbox then
-                        -- FIX: Jika jarak ke grid sebelahnya ≤ 8 studs (kurang lebih jarak 1-2 blok), LANGSUNG NGEBUT!
-                        local distToTarget = (Vector3.new(standX * getgenv().GridSize, standY * getgenv().GridSize, 0) - Vector3.new(MyHitbox.Position.X, MyHitbox.Position.Y, 0)).Magnitude
-                        if distToTarget <= 8 then 
-                            useFastMove = true
-                        end
-                    end
-
-                    -- Jalan! (Ngebut kalau dekat, Halus kalau jauh)
-                    WalkToGrid(standX, standY, useFastMove)
-                    
                     local lockCFrame = MyHitbox and MyHitbox.CFrame or nil
+
                     local tries = 0
-                    
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
                         
-                        -- Cek hancur
                         if not NeedsBreaking(currentX, blockTargetY) then break end
 
-                        -- Diam mantap saat mukul
+                        -- Kunci CFrame agar karakter mantap seperti patung saat memukul
                         if MyHitbox and lockCFrame then
                             MyHitbox.CFrame = lockCFrame
                             MyHitbox.Velocity = Vector3.zero
@@ -266,7 +262,6 @@ task.spawn(function()
                         tries = tries + 1
                     end
                     
-                    -- Masukkan ke blacklist kalau keras kepala (tidak hancur)
                     if tries >= getgenv().MaxHitFailsafe then
                         getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                     end
