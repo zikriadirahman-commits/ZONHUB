@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (ZERO JITTER & CX FLY LOGIC) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE V29 (SMART SIDE-BREAK LOGIC) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v28 - Final Perfection" 
+getgenv().ScriptVersion = "AutoClear v29 - Side Sweep" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -15,7 +15,7 @@ getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.05  
-getgenv().StepDelay = 0.1    -- Jeda jalan per grid (Anti-Blink/Glitch)
+getgenv().StepDelay = 0.1    
 getgenv().MoveDelay = 0.15    
 getgenv().MaxHitFailsafe = 20 
 
@@ -63,19 +63,17 @@ local function ToggleCXFly(state)
     local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
 
-    -- RAHASIA ANTI GETAR: PlatformStand akan menidurkan sistem fisik karakter, 
-    -- sehingga dia tidak akan memaksakan animasi jatuh yang bikin getar!
     if Hum then Hum.PlatformStand = state end
 
     local parts = {HRP, Hitbox}
     for _, part in ipairs(parts) do
         if part then
             if state then
-                part.CanCollide = false -- Mulus tembus pintu
+                part.CanCollide = false 
                 local bv = part:FindFirstChild("ZON_FlyBV") or Instance.new("BodyVelocity")
                 bv.Name = "ZON_FlyBV"
                 bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-                bv.Velocity = Vector3.zero -- Mengunci di udara secara total
+                bv.Velocity = Vector3.zero 
                 bv.Parent = part
             else
                 part.CanCollide = true
@@ -154,10 +152,8 @@ local function WalkToGrid(tX, tY)
         local nextX = currentX
         local nextY = currentY
 
-        -- Prioritas jalan: X dulu baru Y
         if currentX ~= tX then 
             local stepDir = (tX > currentX) and 1 or -1
-            -- JIKA DEPAN ADA PINTU/BEDROCK, TERBANG NAIK 1 BLOCK DULU
             if IsObstacle(currentX + stepDir, currentY) then
                 nextY = currentY + 1
             else
@@ -166,7 +162,6 @@ local function WalkToGrid(tX, tY)
         elseif currentY < tY then 
             nextY = currentY + 1
         elseif currentY > tY then 
-            -- Jangan turun jika di bawah persis ada pintu/bedrock!
             if IsObstacle(currentX, currentY - 1) then break end
             nextY = currentY - 1 
         end
@@ -176,7 +171,6 @@ local function WalkToGrid(tX, tY)
         
         local newPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
         
-        -- Memindahkan posisi dengan mulus
         if Hitbox then Hitbox.CFrame = CFrame.new(newPos); Hitbox.Velocity = Vector3.zero end
         if HRP then HRP.CFrame = CFrame.new(newPos); HRP.Velocity = Vector3.zero end
         if PlayerMovement then pcall(function() PlayerMovement.Position = newPos end) end
@@ -186,7 +180,7 @@ local function WalkToGrid(tX, tY)
 end
 
 -- ========================================== --
--- LOGIKA ZIG-ZAG UTAMA (THREAD)
+-- LOGIKA ZIG-ZAG DINAMIS (ATAS -> SAMPING)
 -- ========================================== --
 local isRunning = false
 
@@ -196,23 +190,17 @@ task.spawn(function()
             isRunning = true
             local arahKanan = true 
 
-            -- [[ AKTIFKAN TERBANG MEMATUNG ]] --
             ToggleCXFly(true)
 
-            -- [[ PRE-SCAN (SMART RESUME) ]] --
             local highestTargetY = getgenv().AC_StartY
             for scanY = getgenv().AC_StartY, getgenv().AC_EndY, -1 do
                 local foundBlock = false
                 for scanX = getgenv().AC_StartX, getgenv().AC_EndX do
                     if NeedsBreaking(scanX, scanY - 1) then
-                        foundBlock = true
-                        break
+                        foundBlock = true; break
                     end
                 end
-                if foundBlock then
-                    highestTargetY = scanY
-                    break
-                end
+                if foundBlock then highestTargetY = scanY; break end
             end
 
             for currentY = highestTargetY, getgenv().AC_EndY, -1 do
@@ -227,26 +215,57 @@ task.spawn(function()
                     
                     if not NeedsBreaking(currentX, blockTargetY) then continue end
                     
-                    -- 1. BERJALAN MURNI PER BLOCK (Dgn sensor otomatis hindari pintu)
-                    WalkToGrid(currentX, currentY)
-                    task.wait(getgenv().MoveDelay) 
+                    -- Kalkulasi titik serang (Samping vs Atas)
+                    local sideX = currentX - stepX
+                    local sideY = blockTargetY
                     
-                    -- 2. HANCURKAN BLOCK 
-                    -- (Karena CFrame tidak lagi dipaksa spam di dalam loop ini, karakter Anda TIDAK AKAN GETAR lagi!)
-                    local tries = 0
-                    while tries < getgenv().MaxHitFailsafe do
-                        if not getgenv().AutoClearEnabled then break end
+                    -- Cek apakah kita bisa berdiri di samping block
+                    -- (Syarat: bukan obstacle pintu/bedrock, dan bukan block yang belum dihancurkan)
+                    local canSideBreak = (not IsObstacle(sideX, sideY)) and (not NeedsBreaking(sideX, sideY))
+                    
+                    if canSideBreak then
+                        -- =====================================
+                        -- OPSI A: HANCURKAN DARI SAMPING
+                        -- =====================================
+                        WalkToGrid(sideX, sideY)
+                        task.wait(getgenv().MoveDelay) 
                         
-                        -- Pengecekan radar, berhenti mukul jika block sudah lenyap
-                        if not NeedsBreaking(currentX, blockTargetY) then break end
-
-                        RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
-                        task.wait(getgenv().BreakDelay)
-                        tries = tries + 1
-                    end
-                    
-                    if tries >= getgenv().MaxHitFailsafe then
-                        getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
+                        local tries = 0
+                        while tries < getgenv().MaxHitFailsafe do
+                            if not getgenv().AutoClearEnabled or not NeedsBreaking(currentX, blockTargetY) then break end
+                            RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
+                            task.wait(getgenv().BreakDelay)
+                            tries = tries + 1
+                        end
+                        
+                        if tries >= getgenv().MaxHitFailsafe then
+                            getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
+                        else
+                            -- Maju menempati block yang baru hancur
+                            WalkToGrid(currentX, blockTargetY)
+                        end
+                    else
+                        -- =====================================
+                        -- OPSI B: HANCURKAN DARI ATAS 
+                        -- (Dipakai di block pertama / terhalang)
+                        -- =====================================
+                        WalkToGrid(currentX, currentY) -- currentY ada di atas blockTargetY
+                        task.wait(getgenv().MoveDelay) 
+                        
+                        local tries = 0
+                        while tries < getgenv().MaxHitFailsafe do
+                            if not getgenv().AutoClearEnabled or not NeedsBreaking(currentX, blockTargetY) then break end
+                            RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
+                            task.wait(getgenv().BreakDelay)
+                            tries = tries + 1
+                        end
+                        
+                        if tries >= getgenv().MaxHitFailsafe then
+                            getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
+                        else
+                            -- Turun ke lubang yang baru dibuat
+                            WalkToGrid(currentX, blockTargetY)
+                        end
                     end
                 end
                 
@@ -255,8 +274,6 @@ task.spawn(function()
             
             isRunning = false
             if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
-            
-            -- Matikan terbang saat selesai
             ToggleCXFly(false)
         end
     end
