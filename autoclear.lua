@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (TRUE SMOOTH WALK / JALAN BIASA) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (NO-JUMP, EDGE FIX, BG FIX) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v34 - True Smooth Walk" 
+getgenv().ScriptVersion = "AutoClear v36 - Absolute Perfection" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -14,9 +14,9 @@ getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
-getgenv().BreakDelay = 0.01   
-getgenv().StepDelay = 0.15    -- Waktu tempuh per 1 blok. (Besarkan jika masih dirasa terlalu cepat)
-getgenv().MaxHitFailsafe = 50 
+getgenv().BreakDelay = 0.03   -- Sedikit dinaikkan agar Server sempat menghapus Background
+getgenv().StepDelay = 0.15    -- Smooth walk (Lerp) speed
+getgenv().MaxHitFailsafe = 100 -- Diperbesar agar sabar menunggu Background hancur
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 -- ========================================== --
@@ -90,8 +90,8 @@ local function GetFilterObjects()
     return filter
 end
 
-local function IsPositionSafe(gridX, gridY)
-    if gridX < getgenv().AC_StartX or gridX > getgenv().AC_EndX then return false end
+-- FIX: Menghapus deteksi "CanCollide". Bot TIDAK AKAN LOMPAT melihat tanah sisa, HANYA melompat jika bertemu Bedrock.
+local function IsSolidObstacle(gridX, gridY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
     local startZ = MyHitbox and MyHitbox.Position.Z or 0
@@ -105,12 +105,12 @@ local function IsPositionSafe(gridX, gridY)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then
             local pName = string.lower(part.Name)
-            if part.CanCollide or string.find(pName, "bedrock") or string.find(pName, "border") then
-                return false 
+            if string.find(pName, "bedrock") or string.find(pName, "border") or string.find(pName, "portal") or string.find(pName, "spawn") then
+                return true 
             end
         end
     end
-    return true
+    return false
 end
 
 local function NeedsBreaking(gridX, gridY)
@@ -136,7 +136,7 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- [ BARU! ] JALAN MANUAL PERLAHAN SECARA HALUS (LERP)
+-- JALAN MENYAMPING SECARA HALUS (LERP)
 -- ========================================== --
 local function WalkToGrid(tX, tY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
@@ -159,19 +159,16 @@ local function WalkToGrid(tX, tY)
         
         local targetWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
         
-        -- LOGIKA MENSIMULASIKAN JALAN (10 LANGKAH KECIL PER BLOK)
         local startPos = MyHitbox.Position
-        local steps = 10 
+        local steps = 15 
         for i = 1, steps do
             if not getgenv().AutoClearEnabled then break end
             
-            -- Memecah jarak jauh menjadi jarak sangat pendek secara perlahan
             local lerpPos = startPos:Lerp(targetWorldPos, i / steps)
             MyHitbox.CFrame = CFrame.new(lerpPos)
             
             if PlayerMovement then pcall(function() PlayerMovement.Position = lerpPos end) end
             
-            -- Jeda sangat kecil supaya terlihat seperti jalan di layar dan disetujui server
             task.wait(getgenv().StepDelay / steps) 
         end
         
@@ -217,24 +214,42 @@ task.spawn(function()
                     
                     if not NeedsBreaking(currentX, blockTargetY) then continue end
                     
+                    -- [ FIX 1: PENANGANAN X=0 (BORDER KIRI/KANAN MENTOK) ]
                     local standX = currentX - stepX
-                    
-                    if standX < getgenv().AC_StartX then standX = getgenv().AC_StartX end
-                    if standX > getgenv().AC_EndX then standX = getgenv().AC_EndX end
-                    
                     local standY = blockTargetY
-                    local maxUp = 0
-                    while not IsPositionSafe(standX, standY) and maxUp < 5 do
-                        standY = standY + 1
-                        maxUp = maxUp + 1
+
+                    if standX < getgenv().AC_StartX or standX > getgenv().AC_EndX then
+                        -- Jika mentok ujung map, otomatis berdiri di ATAS blok tersebut
+                        standX = currentX
+                        standY = blockTargetY + 1
+                    else
+                        -- [ FIX 2: HANYA LOMPAT JIKA KETEMU BEDROCK ]
+                        local maxUp = 0
+                        while IsSolidObstacle(standX, standY) and maxUp < 5 do
+                            standY = standY + 1
+                            maxUp = maxUp + 1
+                        end
                     end
                     
                     WalkToGrid(standX, standY)
                     
+                    -- [ FIX 3: KUNCI POSISI SAAT BREAK AGAR TIDAK MANTUL/GETAR ]
+                    local HitboxFolder = workspace:FindFirstChild("Hitbox")
+                    local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
+                    local lockCFrame = MyHitbox and MyHitbox.CFrame or nil
+
                     local tries = 0
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
+                        
+                        -- Loop ini tidak akan berhenti sampai Foreground & Background HANCUR
                         if not NeedsBreaking(currentX, blockTargetY) then break end
+
+                        -- Memaksa karakter diam persis di tempat saat sedang memukul
+                        if MyHitbox and lockCFrame then
+                            MyHitbox.CFrame = lockCFrame
+                            MyHitbox.Velocity = Vector3.zero
+                        end
 
                         RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                         task.wait(getgenv().BreakDelay)
