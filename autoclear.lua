@@ -1,9 +1,9 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (V51 PERFECT SENSOR & INSTANT NEXT) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (V52 PERFECT BASE & INSTANT NEXT) ]] --
 
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v51 - Perfect Sensor" 
+getgenv().ScriptVersion = "AutoClear v52 - Server Glide & Instant Next" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL
@@ -16,7 +16,7 @@ getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.03  
-getgenv().GlideSpeed = 1.5   -- Standar mulus
+getgenv().GlideSpeed = 1.5   -- Standar mulus (jangan terlalu besar agar tidak teleport)
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 
@@ -51,7 +51,7 @@ CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- FUNGSI TERBANG FISIK 
+-- FUNGSI TERBANG FISIK (MURNI BAWAAN)
 -- ========================================== --
 local function ToggleCXFly(state)
     local Char = LP.Character
@@ -80,7 +80,7 @@ local function ToggleCXFly(state)
 end
 
 -- ========================================== --
--- SENSOR PINTAR (UKURAN DIPERBAIKI)
+-- SENSOR PINTAR BLOK (DENGAN FILTER UKURAN & WUJUD)
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -99,10 +99,11 @@ local function IsBedrock(gridX, gridY)
     params.FilterDescendantsInstances = GetFilterObjects()
     params.FilterType = Enum.RaycastFilterType.Exclude
 
-    -- Sensor 4.5 x 4.5 menyesuaikan grid, kedalaman 20 agar pas
-    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(4.5, 4.5, 20), params)
+    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") and string.match(string.lower(part.Name), "bedrock") then
+            -- Abaikan invisible wall bedrock atau border raksasa
+            if part.Transparency == 1 or part.Size.X > 20 or part.Size.Y > 20 then continue end
             return true
         end
     end
@@ -120,15 +121,20 @@ local function NeedsBreaking(gridX, gridY)
     params.FilterDescendantsInstances = GetFilterObjects()
     params.FilterType = Enum.RaycastFilterType.Exclude
 
-    -- Sensor 4.5 x 4.5 menyesuaikan grid, kedalaman 20 agar pas
-    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(4.5, 4.5, 20), params)
+    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then 
+            
+            -- [!] KUNCI INSTANT NEXT: Abaikan background/skybox raksasa dan dinding tak terlihat
+            if part.Transparency == 1 then continue end
+            if part.Size.X > 20 or part.Size.Y > 20 then continue end
+            
             local pName = string.lower(part.Name)
             if string.find(pName, "door") or string.find(pName, "portal") or string.find(pName, "border") or string.find(pName, "spawn") then
                 continue
             end
-            return true 
+            
+            return true -- Berarti benar-benar Dirt / Background kecil yang masih ada
         end
     end
     return false
@@ -246,7 +252,7 @@ task.spawn(function()
                         RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                         
                         extremeFailsafe = extremeFailsafe + 1
-                        if extremeFailsafe > 150 then
+                        if extremeFailsafe > 150 then -- Sekitar 4 detik maksimal per blok jika lag parah
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                             break
                         end
