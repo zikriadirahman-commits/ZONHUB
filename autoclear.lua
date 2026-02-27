@@ -1,9 +1,9 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (V58 STONE FIX & TUNNEL MASTER) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (V59 LANCAR JAYA + TUNNEL + STONE FIX) ]] --
 
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v58 - Stone Fix & Tunnel Master" 
+getgenv().ScriptVersion = "AutoClear v59 - Perfect Base & Tunnel" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL
@@ -18,12 +18,13 @@ getgenv().GridSize = 4.5
 getgenv().BreakDelay = 0.03  
 getgenv().GlideSpeed = 1.5   
 
--- [!] MAX HITS DINAIKKAN AGAR STONE (BATU) BISA HANCUR (Sekitar 4.5 detik)
--- Jangan khawatir lama, karena kalau hancur lebih cepat, dia akan otomatis instan pindah!
-getgenv().MaxHits = 150       
+-- [!] ANGKA EMAS: 80 Pukulan (~2.4 detik). 
+-- Cukup lama untuk hancurkan Stone/Batu, tapi tidak bikin kelamaan bengong.
+getgenv().MaxHits = 80       
 
 getgenv().HoverOffset = 2.5  
 
+-- Memori Resume
 getgenv().AC_ResumeX = nil
 getgenv().AC_ResumeY = nil
 getgenv().AC_ArahKanan = nil
@@ -37,6 +38,7 @@ local RS = game:GetService("ReplicatedStorage")
 local UIS = game:GetService("UserInputService")
 local VirtualUser = game:GetService("VirtualUser") 
 
+-- Anti AFK
 LP.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
 
 local PlayerMovement
@@ -62,7 +64,7 @@ CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- FUNGSI TERBANG FISIK 
+-- FUNGSI TERBANG FISIK (ANTI-GRAVITASI)
 -- ========================================== --
 local function ToggleCXFly(state)
     local Char = LP.Character
@@ -92,7 +94,7 @@ local function ToggleCXFly(state)
 end
 
 -- ========================================== --
--- SENSOR PINTAR DENGAN Z-DEPTH (ANTI GUNUNG)
+-- SENSOR PINTAR (DIKEMBALIKAN KE VERSI LANCAR 100%)
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -114,9 +116,6 @@ local function IsUnbreakable(gridX, gridY)
     local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then
-            -- [!] FILTER KEDALAMAN: Abaikan objek yang jauh di latar belakang (>8 stud)
-            if math.abs(part.Position.Z - startZ) > 8 then continue end
-
             local pName = string.lower(part.Name)
             local parentName = part.Parent and string.lower(part.Parent.Name) or ""
             
@@ -145,9 +144,6 @@ local function NeedsBreaking(gridX, gridY)
     local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then 
-            -- [!] FILTER KEDALAMAN: Dijamin tidak akan stuck memukul gunung!
-            if math.abs(part.Position.Z - startZ) > 8 then continue end
-
             local pName = string.lower(part.Name)
             local parentName = part.Parent and string.lower(part.Parent.Name) or ""
             
@@ -192,7 +188,7 @@ local function ServerSyncedGlide(targetPos)
 end
 
 -- ========================================== --
--- LOGIKA UTAMA DENGAN SISTEM TEROWONGAN
+-- LOGIKA UTAMA: TEROWONGAN AMAN + ANTI GETAR
 -- ========================================== --
 local isRunning = false
 
@@ -230,26 +226,22 @@ task.spawn(function()
                         local hoverY_Grid = blockTargetY + 1
 
                         -- ========================================== --
-                        -- [!] LOGIKA TEROWONGAN (TUNNELING)
-                        -- Mengecek apakah langit-langit (hoverY) kehalang Bedrock
+                        -- [!] LOGIKA TEROWONGAN (TUNNELING) AMAN
                         -- ========================================== --
                         if IsUnbreakable(currentX, hoverY_Grid) then
                             
-                            -- Mundur 1 blok dan sejajarkan dengan tanah (bukan melayang)
+                            -- Posisi sejajar di depan blok
                             local standX = currentX - stepX 
                             local tunnelStandPos = Vector3.new(standX * getgenv().GridSize, blockTargetY * getgenv().GridSize, lockZ)
                             
-                            -- Meluncur turun ke depan blok tersebut
                             ServerSyncedGlide(tunnelStandPos)
                             
-                            -- Memecahkan dari depan (Tunneling Mode)
+                            -- Hancurkan dari depan (Anti Getar diaktifkan)
                             if Hitbox then Hitbox.Anchored = true end
                             if HRP then HRP.Anchored = true end
 
-                            local tunnelFailsafe = 0
+                            local preFailsafe = 0
                             while NeedsBreaking(currentX, blockTargetY) and getgenv().AutoClearEnabled do
-                                
-                                -- Kunci paksa anti-getar
                                 if Hitbox then Hitbox.CFrame = CFrame.new(tunnelStandPos) end
                                 if HRP then HRP.CFrame = CFrame.new(tunnelStandPos) end
                                 if PlayerMovement then pcall(function() PlayerMovement.Position = tunnelStandPos end) end
@@ -258,14 +250,13 @@ task.spawn(function()
                                 
                                 RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                                 
-                                tunnelFailsafe = tunnelFailsafe + 1
-                                if tunnelFailsafe > getgenv().MaxHits then break end
+                                preFailsafe = preFailsafe + 1
+                                if preFailsafe > getgenv().MaxHits then break end
                                 task.wait(getgenv().BreakDelay)
                             end
                             
-                            -- Setelah hancur, maju masuk ke dalam terowongannya
+                            -- Maju masuk ke dalam blok yang sudah bolong
                             local tunnelEnterPos = Vector3.new(currentX * getgenv().GridSize, blockTargetY * getgenv().GridSize, lockZ)
-                            
                             if Hitbox then Hitbox.Anchored = false end
                             if HRP then HRP.Anchored = false end
                             
@@ -273,14 +264,13 @@ task.spawn(function()
                             
                         else
                             -- ========================================== --
-                            -- [!] LOGIKA GLIDE NORMAL (TIDAK ADA BEDROCK DI ATAS)
+                            -- [!] LOGIKA GLIDE NORMAL (DI ATAS BLOK)
                             -- ========================================== --
                             local targetY_Pos = (hoverY_Grid * getgenv().GridSize) + getgenv().HoverOffset
                             local hoverPos = Vector3.new(currentX * getgenv().GridSize, targetY_Pos, lockZ)
 
                             ServerSyncedGlide(hoverPos)
 
-                            -- Anchor mati untuk anti-getar
                             if Hitbox then Hitbox.Anchored = true end
                             if HRP then HRP.Anchored = true end
 
