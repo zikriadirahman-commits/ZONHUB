@@ -1,9 +1,9 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (V54 ANTI-JITTER & SMART SKIP) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (V55 PERFECT LOCK & TUNNEL BYPASS) ]] --
 
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v54 - Stable Glide & Smart Skip" 
+getgenv().ScriptVersion = "AutoClear v55 - Perfect Lock & Tunnel Bypass" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL
@@ -65,6 +65,7 @@ local function ToggleCXFly(state)
     local parts = {HRP, Hitbox}
     for _, part in ipairs(parts) do
         if part then
+            part.Anchored = false -- Pastikan awalnya tidak terkunci
             if state then
                 part.CanCollide = false 
                 local bv = part:FindFirstChild("ZON_FlyBV") or Instance.new("BodyVelocity")
@@ -91,7 +92,6 @@ local function GetFilterObjects()
     return filter
 end
 
--- [!] FUNGSI BARU: Mengecek nama Part DAN nama Model-nya (Parent)
 local function IsUnbreakable(gridX, gridY)
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
     local startZ = Hitbox and Hitbox.Position.Z or 0
@@ -107,7 +107,7 @@ local function IsUnbreakable(gridX, gridY)
             local pName = string.lower(part.Name)
             local parentName = part.Parent and string.lower(part.Parent.Name) or ""
             
-            -- Jika namanya (atau nama parent/model-nya) mengandung kata-kata ini, SKIP!
+            -- Pintar lewati Main Door dan Bedrock (termasuk modelnya)
             if string.find(pName, "bedrock") or string.find(parentName, "bedrock") or
                string.find(pName, "door") or string.find(parentName, "door") or
                string.find(pName, "main") or string.find(parentName, "main") or
@@ -220,56 +220,70 @@ task.spawn(function()
                 for currentX = startX, endX, stepX do
                     if not getgenv().AutoClearEnabled then break end
                     
-                    -- [!] CEK HALANGAN: Kalau ketemu Bedrock atau Door, LANGSUNG LEWATI
+                    -- [!] CEK TARGET: Kalau target utamanya Bedrock, langsung LEWATI (Skip Column)
                     if IsUnbreakable(currentX, blockTargetY) then
                         getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                         continue 
                     end
 
-                    -- Kalau tidak ada Dirt, lewati
                     if not NeedsBreaking(currentX, blockTargetY) then continue end
 
-                    -- MELUNCUR KE TARGET
                     local hoverY = blockTargetY + 1
-                    ServerSyncedGlide(currentX, hoverY)
-                    
-                    local extremeFailsafe = 0
                     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
                     local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-                    
-                    -- [!] KUNCI ANTI GETAR: Mengambil posisi ASLI karakter setelah meluncur
-                    local exactLockCFrame_Hitbox = Hitbox and Hitbox.CFrame
-                    local exactLockCFrame_HRP = HRP and HRP.CFrame
-                    local exactLockPos_Player = Hitbox and Hitbox.Position
 
                     -- ========================================== --
-                    -- STRICT BREAK LOOP (ANTI GETAR + FAST SKIP)
+                    -- [!] SISTEM BYPASS TEROWONGAN (TURUN 1 BLOK)
                     -- ========================================== --
+                    -- Mengecek apakah di udara tempat kita mau glide ternyata ada Bedrock/Pintu
+                    if IsUnbreakable(currentX, hoverY) then
+                        
+                        -- Turunkan target melayang ke level tanah (Y-1)
+                        hoverY = blockTargetY 
+                        local standX = currentX - stepX -- Posisi kita saat ini
+                        
+                        -- Mundur dan turun ke depan blok tersebut
+                        ServerSyncedGlide(standX, hoverY)
+                        
+                        -- Bekukan fisik 100% (Anti-Getar)
+                        if Hitbox then Hitbox.Anchored = true end
+                        if HRP then HRP.Anchored = true end
+
+                        -- Hancurkan tanah di depannya dari posisi mundur
+                        local preFailsafe = 0
+                        while NeedsBreaking(currentX, blockTargetY) and getgenv().AutoClearEnabled do
+                            RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
+                            preFailsafe = preFailsafe + 1
+                            if preFailsafe > getgenv().MaxHits then break end
+                            task.wait(getgenv().BreakDelay)
+                        end
+                        
+                        -- Lepas kunci fisik agar bisa maju
+                        if Hitbox then Hitbox.Anchored = false end
+                        if HRP then HRP.Anchored = false end
+                    end
+
+                    -- MELUNCUR KE TARGET (Entah di udara atas atau maju ke dalam tanah yang baru dihancurkan)
+                    ServerSyncedGlide(currentX, hoverY)
+                    
+                    -- ========================================== --
+                    -- STRICT BREAK LOOP (KUNCI MATI ANTI-GETAR)
+                    -- ========================================== --
+                    -- Bekukan fisik 100% saat berada tepat di atas/di dalam blok
+                    if Hitbox then Hitbox.Anchored = true end
+                    if HRP then HRP.Anchored = true end
+
+                    local extremeFailsafe = 0
                     while NeedsBreaking(currentX, blockTargetY) and getgenv().AutoClearEnabled do
                         
-                        -- Mengunci posisi ke titik ASLI (Bukan titik matematika, jadi tidak akan bergetar/lompat)
-                        if Hitbox and exactLockCFrame_Hitbox then 
-                            Hitbox.CFrame = exactLockCFrame_Hitbox; Hitbox.Velocity = Vector3.zero 
-                        end
-                        if HRP and exactLockCFrame_HRP then 
-                            HRP.CFrame = exactLockCFrame_HRP; HRP.Velocity = Vector3.zero 
-                        end
-                        if PlayerMovement and exactLockPos_Player then 
-                            pcall(function() PlayerMovement.Position = exactLockPos_Player end) 
-                        end
-                        
-                        -- Cek darurat kalau di balik dirt ternyata Bedrock/Door
                         if IsUnbreakable(currentX, blockTargetY) then
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                             break
                         end
                         
-                        -- Lempar pukulan ke server
                         RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
                         
                         extremeFailsafe = extremeFailsafe + 1
-                        
-                        -- 25 Hits = Cepat geser kalau bug lag
                         if extremeFailsafe > getgenv().MaxHits then 
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                             break
@@ -277,6 +291,10 @@ task.spawn(function()
                         
                         task.wait(getgenv().BreakDelay)
                     end
+                    
+                    -- Hancur total, lepas kunci fisik untuk bersiap meluncur lagi!
+                    if Hitbox then Hitbox.Anchored = false end
+                    if HRP then HRP.Anchored = false end
                 end
                 
                 arahKanan = not arahKanan 
