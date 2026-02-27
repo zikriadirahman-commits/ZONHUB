@@ -1,344 +1,96 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (V43 CORE + FIX BACKGROUND + BEDROCK JUMP ONLY) ]] --
-local TargetPage = ... 
-if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local rootPart = character:WaitForChild("HumanoidRootPart")
+local userInputService = game:GetService("UserInputService")
 
-getgenv().ScriptVersion = "AutoClear v44 - Perfect BG & Bedrock Jump" 
+local isFarming = false
+local glideHeight = 4 -- Jarak karakter melayang di atas block (sesuaikan jangkauan tool)
+local moveStep = 3    -- Jarak geser ke samping setelah block hancur/ketemu Bedrock
 
--- ========================================== --
--- VARIABEL GLOBAL (MURNI V43)
--- ========================================== --
-getgenv().AutoClearEnabled = false
-getgenv().AC_StartX = 0
-getgenv().AC_EndX = 100
-getgenv().AC_StartY = 37
-getgenv().AC_EndY = 6
+-- Fungsi untuk mendapatkan Tool yang sedang dipegang
+local function getEquippedTool()
+    return character:FindFirstChildOfClass("Tool")
+end
 
-getgenv().GridSize = 4.5     
-getgenv().BreakDelay = 0.03  
-getgenv().StepDelay = 0.1     -- [AMAN] Jeda jalan V28 khusus pas Start awal
-getgenv().MaxHitFailsafe = 80 -- [DIPERBESAR] Agar DIRT + BACKGROUND pasti hancur sebelum pindah!
+-- Fungsi menembakkan sensor (Raycast) ke bawah untuk mendeteksi block
+local function scanBelow()
+    local rayOrigin = rootPart.Position
+    local rayDirection = Vector3.new(0, -10, 0) -- Jarak sensor ke bawah 10 stud
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {character}
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
 
-getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
--- ========================================== --
+    return workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+end
 
-local Players = game:GetService("Players")
-local LP = Players.LocalPlayer
-local RS = game:GetService("ReplicatedStorage")
-local UIS = game:GetService("UserInputService")
-local VirtualUser = game:GetService("VirtualUser") 
-
--- Anti AFK
-LP.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
-
-local PlayerMovement
-pcall(function() PlayerMovement = require(LP.PlayerScripts:WaitForChild("PlayerMovement")) end)
-
-local Remotes = RS:WaitForChild("Remotes")
-local RemoteBreak = Remotes:WaitForChild("PlayerFist")
-
--- ========================================== --
--- FUNGSI UI UTILITY
--- ========================================== --
-local Theme = { Item = Color3.fromRGB(45, 45, 45), Text = Color3.fromRGB(255, 255, 255), Purple = Color3.fromRGB(140, 80, 255) }
-
-local function CreateToggle(Parent, Text, Var) local Btn = Instance.new("TextButton", Parent); Btn.BackgroundColor3 = Theme.Item; Btn.Size = UDim2.new(1, -10, 0, 35); Btn.Text = ""; Btn.AutoButtonColor = false; local C = Instance.new("UICorner", Btn); C.CornerRadius = UDim.new(0, 6); local T = Instance.new("TextLabel", Btn); T.Text = Text; T.TextColor3 = Theme.Text; T.Font = Enum.Font.GothamSemibold; T.TextSize = 12; T.Size = UDim2.new(1, -40, 1, 0); T.Position = UDim2.new(0, 10, 0, 0); T.BackgroundTransparency = 1; T.TextXAlignment = Enum.TextXAlignment.Left; local IndBg = Instance.new("Frame", Btn); IndBg.Size = UDim2.new(0, 36, 0, 18); IndBg.Position = UDim2.new(1, -45, 0.5, -9); IndBg.BackgroundColor3 = Color3.fromRGB(30,30,30); local IC = Instance.new("UICorner", IndBg); IC.CornerRadius = UDim.new(1,0); local Dot = Instance.new("Frame", IndBg); Dot.Size = UDim2.new(0, 14, 0, 14); Dot.Position = UDim2.new(0, 2, 0.5, -7); Dot.BackgroundColor3 = Color3.fromRGB(100,100,100); local DC = Instance.new("UICorner", Dot); DC.CornerRadius = UDim.new(1,0); Btn.MouseButton1Click:Connect(function() getgenv()[Var] = not getgenv()[Var]; if getgenv()[Var] then Dot:TweenPosition(UDim2.new(1, -16, 0.5, -7), "Out", "Quad", 0.2, true); Dot.BackgroundColor3 = Color3.new(1,1,1); IndBg.BackgroundColor3 = Theme.Purple else Dot:TweenPosition(UDim2.new(0, 2, 0.5, -7), "Out", "Quad", 0.2, true); Dot.BackgroundColor3 = Color3.fromRGB(100,100,100); IndBg.BackgroundColor3 = Color3.fromRGB(30,30,30) end end) end
-local function CreateSlider(Parent, Text, Min, Max, Default, Var) local Frame = Instance.new("Frame", Parent); Frame.BackgroundColor3 = Theme.Item; Frame.Size = UDim2.new(1, -10, 0, 45); local C = Instance.new("UICorner", Frame); C.CornerRadius = UDim.new(0, 6); local Label = Instance.new("TextLabel", Frame); Label.Text = Text .. ": " .. Default; Label.TextColor3 = Theme.Text; Label.BackgroundTransparency = 1; Label.Size = UDim2.new(1, 0, 0, 20); Label.Position = UDim2.new(0, 10, 0, 2); Label.Font = Enum.Font.GothamSemibold; Label.TextSize = 12; Label.TextXAlignment = Enum.TextXAlignment.Left; local SliderBg = Instance.new("TextButton", Frame); SliderBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30); SliderBg.Position = UDim2.new(0, 10, 0, 28); SliderBg.Size = UDim2.new(1, -20, 0, 6); SliderBg.Text = ""; SliderBg.AutoButtonColor = false; local SC = Instance.new("UICorner", SliderBg); SC.CornerRadius = UDim.new(1,0); local Fill = Instance.new("Frame", SliderBg); Fill.BackgroundColor3 = Theme.Purple; Fill.Size = UDim2.new((Default-Min)/(Max-Min), 0, 1, 0); local FC = Instance.new("UICorner", Fill); FC.CornerRadius = UDim.new(1,0); local Dragging = false; local function Update(input) local SizeX = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1); local Val = math.floor(Min + ((Max - Min) * SizeX)); Fill.Size = UDim2.new(SizeX, 0, 1, 0); Label.Text = Text .. ": " .. Val; getgenv()[Var] = Val end; SliderBg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then Dragging = true; Update(i) end end); UIS.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then Dragging = false end end); UIS.InputChanged:Connect(function(i) if Dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then Update(i) end end) end
-
-CreateToggle(TargetPage, "Start Auto Clear World", "AutoClearEnabled")
-CreateSlider(TargetPage, "Start X", 0, 500, 0, "AC_StartX")
-CreateSlider(TargetPage, "End X", 0, 500, 100, "AC_EndX")
-CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
-CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
-
--- ========================================== --
--- FUNGSI TERBANG CX (MURNI V43)
--- ========================================== --
-local function ToggleCXFly(state)
-    local Char = LP.Character
-    local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
-    local Hum = Char and Char:FindFirstChildOfClass("Humanoid")
-    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-
-    if Hum then Hum.PlatformStand = state end
-
-    local parts = {HRP, Hitbox}
-    for _, part in ipairs(parts) do
-        if part then
-            if state then
-                part.CanCollide = false 
-                local bv = part:FindFirstChild("ZON_FlyBV") or Instance.new("BodyVelocity")
-                bv.Name = "ZON_FlyBV"
-                bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-                bv.Velocity = Vector3.zero 
-                bv.Parent = part
-            else
-                part.CanCollide = true
-                if part:FindFirstChild("ZON_FlyBV") then part.ZON_FlyBV:Destroy() end
-            end
+local function startFarming()
+    -- Aktifkan mode Glide (Karakter melayang, tidak akan jatuh/lompat)
+    rootPart.Anchored = true 
+    
+    while isFarming do
+        task.wait(0.1)
+        
+        local tool = getEquippedTool()
+        if not tool then
+            warn("Pegang Tool/Pickaxe kamu dulu!")
+            task.wait(1)
+            continue
         end
-    end
-end
 
--- ========================================== --
--- SENSOR PINTAR (MURNI V43)
--- ========================================== --
-local function GetFilterObjects()
-    local filter = {LP.Character, workspace.CurrentCamera}
-    if workspace:FindFirstChild("Hitbox") then table.insert(filter, workspace.Hitbox) end
-    if workspace:FindFirstChild("DroppedItems") then table.insert(filter, workspace.DroppedItems) end
-    if workspace:FindFirstChild("Items") then table.insert(filter, workspace.Items) end
-    return filter
-end
-
-local function IsObstacle(gridX, gridY)
-    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-    local startZ = Hitbox and Hitbox.Position.Z or 0
-    local checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, startZ)
-    
-    local params = OverlapParams.new()
-    params.FilterDescendantsInstances = GetFilterObjects()
-    params.FilterType = Enum.RaycastFilterType.Exclude
-
-    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
-    for _, part in ipairs(parts) do
-        if part:IsA("BasePart") then
-            local pName = string.lower(part.Name)
-            if string.find(pName, "door") or string.find(pName, "portal") or string.find(pName, "entrance") or string.find(pName, "spawn") or string.find(pName, "bedrock") or string.find(pName, "border") or string.find(pName, "locked") or string.find(pName, "unbreakable") then
-                return true
-            end
-        end
-    end
-    return false
-end
-
--- SENSOR KHUSUS BEDROCK UNTUK LOMPAT TINGGI + MAJU
-local function IsBedrock(gridX, gridY)
-    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-    local startZ = Hitbox and Hitbox.Position.Z or 0
-    local checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, startZ)
-    
-    local params = OverlapParams.new()
-    params.FilterDescendantsInstances = GetFilterObjects()
-    params.FilterType = Enum.RaycastFilterType.Exclude
-
-    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
-    for _, part in ipairs(parts) do
-        if part:IsA("BasePart") and string.find(string.lower(part.Name), "bedrock") then
-            return true
-        end
-    end
-    return false
-end
-
-local function NeedsBreaking(gridX, gridY)
-    if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return false end
-    
-    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-    local startZ = Hitbox and Hitbox.Position.Z or 0
-    local checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, startZ)
-    
-    local params = OverlapParams.new()
-    params.FilterDescendantsInstances = GetFilterObjects()
-    params.FilterType = Enum.RaycastFilterType.Exclude
-
-    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
-    for _, part in ipairs(parts) do
-        if part:IsA("BasePart") then 
-            local pName = string.lower(part.Name)
-            -- JANGAN PERNAH MENCOBA MENGHANCURKAN DOOR/PORTAL/BORDER
-            if string.find(pName, "door") or string.find(pName, "portal") or string.find(pName, "border") or string.find(pName, "spawn") then
+        local hit = scanBelow()
+        
+        if hit and hit.Instance then
+            local target = hit.Instance
+            
+            -- 1. DETEKSI BEDROCK: Langsung geser ke samping tanpa memukul
+            if target.Name:lower() == "bedrock" then
+                rootPart.CFrame = rootPart.CFrame * CFrame.new(moveStep, 0, 0)
+                task.wait(0.3) -- Jeda sebentar biar tidak nge-glitch
                 continue
             end
-            return true 
-        end
-    end
-    return false
-end
 
--- ========================================== --
--- FUNGSI JALAN MURNI V43 (TETAP PARKOUR, TAPI BISA NGEBUT)
--- ========================================== --
-local function WalkToGrid(tX, tY, isFast)
-    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-    local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-    if not Hitbox then return end
-
-    local startZ = Hitbox.Position.Z
-    local currentX = math.floor(Hitbox.Position.X / getgenv().GridSize + 0.5)
-    local currentY = math.floor(Hitbox.Position.Y / getgenv().GridSize + 0.5)
-
-    while (currentX ~= tX or currentY ~= tY) do
-        if not getgenv().AutoClearEnabled then break end
-        
-        local nextX = currentX
-        local nextY = currentY
-
-        if currentX ~= tX then 
-            local stepDir = (tX > currentX) and 1 or -1
-            if IsObstacle(currentX + stepDir, currentY) then
-                nextY = currentY + 1
-            else
-                nextX = currentX + stepDir
-            end
-        elseif currentY < tY then 
-            nextY = currentY + 1
-        elseif currentY > tY then 
-            if IsObstacle(currentX, currentY - 1) then break end
-            nextY = currentY - 1 
-        end
-        
-        currentX = nextX
-        currentY = nextY
-        
-        local newPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
-        
-        if Hitbox then Hitbox.CFrame = CFrame.new(newPos); Hitbox.Velocity = Vector3.zero end
-        if HRP then HRP.CFrame = CFrame.new(newPos); HRP.Velocity = Vector3.zero end
-        if PlayerMovement then pcall(function() PlayerMovement.Position = newPos end) end
-        
-        if isFast then
-            task.wait() 
+            -- 2. DETEKSI DIRT/BACKGROUND: Kunci posisi tepat di atas block
+            rootPart.CFrame = CFrame.new(target.Position.X, target.Position.Y + glideHeight, rootPart.Position.Z)
+            
+            -- 3. STRICT BREAK: Pukul terus sampai block/background BENAR-BENAR hilang dari game
+            repeat
+                if not isFarming then break end
+                
+                tool:Activate() -- Mengayunkan tool/klik
+                
+                -- [OPSIONAL] Jika game butuh RemoteEvent khusus, letakkan di sini.
+                -- Contoh: game.ReplicatedStorage.MineEvent:FireServer(target)
+                
+                task.wait(0.2) -- Kecepatan pukulan (sesuaikan dengan game)
+            until target == nil or target.Parent == nil
+            
+            -- 4. PINDAH KE SAMPING: Hanya dieksekusi setelah target benar-benar hancur
+            rootPart.CFrame = rootPart.CFrame * CFrame.new(moveStep, 0, 0)
+            
         else
-            task.wait(getgenv().StepDelay) 
+            -- Kalau di bawah kosong (sudah digali semua), otomatis geser ke samping cari block baru
+            rootPart.CFrame = rootPart.CFrame * CFrame.new(moveStep, 0, 0)
+            task.wait(0.2)
         end
     end
 end
 
--- ========================================== --
--- FUNGSI LOMPAT + MAJU (KHUSUS BEDROCK)
--- ========================================== --
-local function JumpOverBedrock(stepX)
-    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-    local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-    if not Hitbox then return end
-
-    local currentX = math.floor(Hitbox.Position.X / getgenv().GridSize + 0.5)
-    local currentY = math.floor(Hitbox.Position.Y / getgenv().GridSize + 0.5)
-    local startZ = Hitbox.Position.Z
-
-    local jumpY = currentY + 1
-    local newPosJump = Vector3.new(currentX * getgenv().GridSize, jumpY * getgenv().GridSize, startZ)
-    if Hitbox then Hitbox.CFrame = CFrame.new(newPosJump); Hitbox.Velocity = Vector3.zero end
-    if HRP then HRP.CFrame = CFrame.new(newPosJump); HRP.Velocity = Vector3.zero end
-    if PlayerMovement then pcall(function() PlayerMovement.Position = newPosJump end) end
-    task.wait(0.05)
-
-    local advanceX = currentX + stepX
-    local newPosAdvance = Vector3.new(advanceX * getgenv().GridSize, jumpY * getgenv().GridSize, startZ)
-    if Hitbox then Hitbox.CFrame = CFrame.new(newPosAdvance); Hitbox.Velocity = Vector3.zero end
-    if HRP then HRP.CFrame = CFrame.new(newPosAdvance); HRP.Velocity = Vector3.zero end
-    if PlayerMovement then pcall(function() PlayerMovement.Position = newPosAdvance end) end
-    task.wait(0.05)
-end
-
--- ========================================== --
--- LOGIKA ZIG-ZAG UTAMA 
--- ========================================== --
-local isRunning = false
-
-task.spawn(function()
-    while task.wait(0.2) do
-        if getgenv().AutoClearEnabled and not isRunning then
-            isRunning = true
-            local arahKanan = true 
-
-            ToggleCXFly(true)
-
-            local highestTargetY = getgenv().AC_StartY
-            for scanY = getgenv().AC_StartY, getgenv().AC_EndY, -1 do
-                local foundBlock = false
-                for scanX = getgenv().AC_StartX, getgenv().AC_EndX do
-                    if NeedsBreaking(scanX, scanY - 1) then
-                        foundBlock = true
-                        break
-                    end
-                end
-                if foundBlock then
-                    highestTargetY = scanY
-                    break
-                end
-            end
-
-            for currentY = highestTargetY, getgenv().AC_EndY, -1 do
-                if not getgenv().AutoClearEnabled then break end 
-                local blockTargetY = currentY - 1 
-                
-                local startX, endX, stepX = getgenv().AC_StartX, getgenv().AC_EndX, 1
-                if not arahKanan then startX, endX, stepX = getgenv().AC_EndX, getgenv().AC_StartX, -1 end
-
-                local isFirstBlock = true 
-
-                for currentX = startX, endX, stepX do
-                    if not getgenv().AutoClearEnabled then break end
-                    
-                    if not NeedsBreaking(currentX, blockTargetY) then continue end
-                    
-                    local standX = currentX - stepX
-                    local standY = blockTargetY
-                    
-                    if standX < getgenv().AC_StartX or standX > getgenv().AC_EndX then
-                        standX = currentX
-                        standY = blockTargetY + 1
-                    end
-
-                    local maxUp = 0
-                    while IsObstacle(standX, standY) and maxUp < 5 do
-                        standY = standY + 1
-                        maxUp = maxUp + 1
-                    end
-                    
-                    WalkToGrid(standX, standY, not isFirstBlock)
-                    isFirstBlock = false 
-                    
-                    local HitboxFolder = workspace:FindFirstChild("Hitbox")
-                    local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
-                    local lockCFrame = MyHitbox and MyHitbox.CFrame or nil
-                    
-                    local tries = 0
-                    local isHittingBedrock = false
-
-                    while tries < getgenv().MaxHitFailsafe do
-                        if not getgenv().AutoClearEnabled then break end
-                        
-                        -- Cek hancur (Dirt + Background)
-                        if not NeedsBreaking(currentX, blockTargetY) then break end
-
-                        -- [ LOGIKA BARU ] Setelah memukul 10x (berhenti sejenak ~0.3 detik), cek apakah itu Bedrock
-                        if tries == 10 then
-                            if IsBedrock(currentX, blockTargetY) then
-                                isHittingBedrock = true
-                                break -- Langsung stop mukul!
-                            end
-                        end
-                        
-                        if MyHitbox and lockCFrame then
-                            MyHitbox.CFrame = lockCFrame
-                            MyHitbox.Velocity = Vector3.zero
-                        end
-
-                        RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
-                        task.wait(getgenv().BreakDelay)
-                        tries = tries + 1
-                    end
-                    
-                    -- AKSI SETELAH SELESAI MUKUL:
-                    if isHittingBedrock then
-                        -- Jika ternyata Bedrock -> Blacklist & Lompat Tinggi Maju!
-                        getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
-                        JumpOverBedrock(stepX)
-                    elseif tries >= getgenv().MaxHitFailsafe then
-                        -- Jika Failsafe 80x tercapai (blok nge-bug) -> Blacklist saja, JANGAN lompat tinggi
-                        getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
-                    end
-                end
-                
-                arahKanan = not arahKanan 
-            end
-            
-            isRunning = false
-            if getgenv().AutoClearEnabled then getgenv().AutoClearEnabled = false end
-            
-            ToggleCXFly(false)
+-- Sistem Tombol On/Off (Toggle) menggunakan tombol "F" di keyboard
+userInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == Enum.KeyCode.F then
+        isFarming = not isFarming
+        
+        if isFarming then
+            print("Auto Mine: ON - Mode Glide Aktif")
+            startFarming()
+        else
+            print("Auto Mine: OFF")
+            rootPart.Anchored = false -- Lepaskan karakter kembali normal
         end
     end
 end)
+
+print("Script siap! Pegang pickaxe dan tekan 'F' untuk mulai/berhenti.")
