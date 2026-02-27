@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (PABRIK MOVEMENT & ANTI-BLINK) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (SMOOTH WALK / JALAN NORMAL) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v32 - Final Fix Pabrik Move" 
+getgenv().ScriptVersion = "AutoClear v33 - Smooth Walk Fix" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -14,8 +14,8 @@ getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
-getgenv().BreakDelay = 0.01   -- Mukul kilat
-getgenv().StepDelay = 0.05    -- Pergerakan Pabrik yang stabil
+getgenv().BreakDelay = 0.01      -- Mukul kilat tetap dipertahankan
+getgenv().WalkSpeedTime = 0.15   -- [BARU] Kecepatan jalan per 1 blok. Makin besar angkanya = makin lambat & aman.
 getgenv().MaxHitFailsafe = 50 
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
@@ -26,6 +26,7 @@ local LP = Players.LocalPlayer
 local RS = game:GetService("ReplicatedStorage")
 local UIS = game:GetService("UserInputService")
 local VirtualUser = game:GetService("VirtualUser") 
+local TweenService = game:GetService("TweenService") -- [BARU] Sistem untuk jalan mulus
 
 -- Anti AFK
 LP.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
@@ -51,7 +52,7 @@ CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- FUNGSI TERBANG CX (ANTI JATUH & ANTI RUBBER-BAND)
+-- FUNGSI TERBANG CX (ANTI JATUH)
 -- ========================================== --
 local function ToggleCXFly(state)
     local Char = LP.Character
@@ -78,7 +79,7 @@ local function ToggleCXFly(state)
 end
 
 -- ========================================== --
--- SENSOR SMART (DETEKSI AMAN UNTUK BERDIRI & BREAK)
+-- SENSOR SMART 
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -88,7 +89,6 @@ local function GetFilterObjects()
     return filter
 end
 
--- Mengecek apakah posisi grid AMAN untuk diinjak (Kosong dari Bedrock/Border/Blok padat)
 local function IsPositionSafe(gridX, gridY)
     if gridX < getgenv().AC_StartX or gridX > getgenv().AC_EndX then return false end
     
@@ -106,14 +106,13 @@ local function IsPositionSafe(gridX, gridY)
         if part:IsA("BasePart") then
             local pName = string.lower(part.Name)
             if part.CanCollide or string.find(pName, "bedrock") or string.find(pName, "border") then
-                return false -- Ada halangan, tidak aman untuk berdiri!
+                return false 
             end
         end
     end
     return true
 end
 
--- Mengecek apakah grid punya blok atau background yang perlu dihancurkan
 local function NeedsBreaking(gridX, gridY)
     if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return false end
     
@@ -130,10 +129,7 @@ local function NeedsBreaking(gridX, gridY)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then 
             local pName = string.lower(part.Name)
-            -- Hiraukan bedrock/border/portal (bukan sesuatu yang bisa dihancurkan)
-            if string.find(pName, "bedrock") or string.find(pName, "border") or string.find(pName, "spawn") or string.find(pName, "portal") then
-                continue
-            end
+            if string.find(pName, "bedrock") or string.find(pName, "border") or string.find(pName, "spawn") or string.find(pName, "portal") then continue end
             return true 
         end
     end
@@ -141,7 +137,7 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- JALAN PER-GRID SCRIPT PABRIK (DENGAN FAILSAFE)
+-- [ BARU! ] JALAN NORMAL SECARA PERLAHAN (SMOOTH TWEEN)
 -- ========================================== --
 local function WalkToGrid(tX, tY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
@@ -156,7 +152,6 @@ local function WalkToGrid(tX, tY)
     while (currentX ~= tX or currentY ~= tY) do
         if not getgenv().AutoClearEnabled then break end
         
-        -- Logic jalan asli Pabrik
         if currentX ~= tX then 
             currentX = currentX + (tX > currentX and 1 or -1)
         elseif currentY ~= tY then 
@@ -164,18 +159,22 @@ local function WalkToGrid(tX, tY)
         end
         
         local newWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
-        MyHitbox.CFrame = CFrame.new(newWorldPos)
+        
+        -- Berjalan perlahan menggunakan TweenService (TIDAK INSTAN TELEPORT)
+        local tInfo = TweenInfo.new(getgenv().WalkSpeedTime, Enum.EasingStyle.Linear)
+        local walkTween = TweenService:Create(MyHitbox, tInfo, {CFrame = CFrame.new(newWorldPos)})
+        walkTween:Play()
+        walkTween.Completed:Wait() -- Tunggu sampai karakter sampai ke grid sebelum lanjut
         
         if PlayerMovement then pcall(function() PlayerMovement.Position = newWorldPos end) end
         
         failsafe = failsafe + 1
-        if failsafe > 30 then break end -- Mencegah loop abadi (bergetar) jika posisi ditolak server
-        task.wait(getgenv().StepDelay)
+        if failsafe > 30 then break end 
     end
 end
 
 -- ========================================== --
--- LOGIKA ZIG-ZAG UTAMA (THREAD)
+-- LOGIKA ZIG-ZAG UTAMA 
 -- ========================================== --
 local isRunning = false
 
@@ -211,14 +210,11 @@ task.spawn(function()
                     
                     if not NeedsBreaking(currentX, blockTargetY) then continue end
                     
-                    -- [ FIX: MENGHITUNG POSISI BERDIRI YANG AMAN ]
                     local standX = currentX - stepX
                     
-                    -- 1. Jangan melewati batas map! Kalau lewat, paksa dia berdiri di batas pinggirnya.
                     if standX < getgenv().AC_StartX then standX = getgenv().AC_StartX end
                     if standX > getgenv().AC_EndX then standX = getgenv().AC_EndX end
                     
-                    -- 2. Jump Over Bedrock: Kalau grid sebelahnya itu Bedrock/Blok, posisikan agak ke atas
                     local standY = blockTargetY
                     local maxUp = 0
                     while not IsPositionSafe(standX, standY) and maxUp < 5 do
@@ -226,10 +222,10 @@ task.spawn(function()
                         maxUp = maxUp + 1
                     end
                     
-                    -- Jalankan Pabrik Movement ke posisi yang sudah 100% aman
+                    -- Panggil fungsi jalan mulusnya
                     WalkToGrid(standX, standY)
                     
-                    -- HANCURKAN BLOCK (Insta-Next)
+                    -- HANCURKAN BLOCK
                     local tries = 0
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
