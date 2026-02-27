@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (DIRECT GLIDE & OBSTACLE BYPASS) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (DUAL-SPEED SMART WALK) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v37 - Fast Direct Glide" 
+getgenv().ScriptVersion = "AutoClear v38 - Dual Speed Fix" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -14,7 +14,9 @@ getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
-getgenv().BreakDelay = 0.03   -- Pas untuk menghancurkan Background
+getgenv().BreakDelay = 0.03   -- Kecepatan break yang aman untuk Background
+getgenv().StartDelay = 0.15   -- [LOGIKA 1] Kecepatan lambat (aman) saat awal mulai/jarak jauh
+getgenv().FastDelay = 0.03    -- [LOGIKA 2] Kecepatan ngebut (responsif) saat pindah ke blok sebelah
 getgenv().MaxHitFailsafe = 100 
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
@@ -89,7 +91,6 @@ local function GetFilterObjects()
     return filter
 end
 
--- FIX: Ditambahkan "door" ke daftar rintangan keras
 local function IsSolidObstacle(gridX, gridY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
@@ -112,7 +113,6 @@ local function IsSolidObstacle(gridX, gridY)
     return false
 end
 
--- FIX: Ditambahkan "door" agar dilewati langsung
 local function NeedsBreaking(gridX, gridY)
     if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return false end
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
@@ -136,9 +136,9 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- [ BARU! ] DIRECT GLIDE (SANGAT CEPAT & HALUS)
+-- DUAL LOGIC JALAN (SANTAI & NGEBUT)
 -- ========================================== --
-local function WalkToGrid(tX, tY)
+local function WalkToGrid(tX, tY, isFastMove)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
     if not MyHitbox then return end
@@ -147,16 +147,21 @@ local function WalkToGrid(tX, tY)
     local startPos = MyHitbox.Position
     local distance = (targetPos - startPos).Magnitude
     
-    -- Jika posisi sudah sangat dekat, tidak perlu jalan lagi
-    if distance < 1 then
+    if distance < 0.5 then
         MyHitbox.CFrame = CFrame.new(targetPos)
         if PlayerMovement then pcall(function() PlayerMovement.Position = targetPos end) end
         return
     end
     
-    -- Menghitung frame lerp berdasarkan jarak (Makin jauh jaraknya, makin ngebut dia meluncur)
+    -- Pilih kecepatan berdasarkan input (Jauh = Santai, Dekat = Cepat)
+    local speedPerBlock = isFastMove and getgenv().FastDelay or getgenv().StartDelay
     local blocksDist = distance / getgenv().GridSize
-    local steps = math.clamp(math.floor(blocksDist * 4), 4, 30) 
+    
+    -- Hitung total waktu animasi
+    local totalTime = blocksDist * speedPerBlock
+    if totalTime < 0.05 then totalTime = 0.05 end 
+    
+    local steps = math.clamp(math.floor(totalTime / 0.015), 3, 60)
     
     for i = 1, steps do
         if not getgenv().AutoClearEnabled then break end
@@ -165,7 +170,8 @@ local function WalkToGrid(tX, tY)
         MyHitbox.CFrame = CFrame.new(lerpPos)
         
         if PlayerMovement then pcall(function() PlayerMovement.Position = lerpPos end) end
-        task.wait(0.01) -- Frame rate meluncur maksimal tanpa nyangkut
+        
+        task.wait(totalTime / steps)
     end
 end
 
@@ -220,16 +226,28 @@ task.spawn(function()
                         end
                     end
                     
-                    WalkToGrid(standX, standY)
-                    
+                    -- [ PENENTUAN 2 LOGIKA JALAN SECARA OTOMATIS ]
                     local HitboxFolder = workspace:FindFirstChild("Hitbox")
                     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
-                    local lockCFrame = MyHitbox and MyHitbox.CFrame or nil
+                    local useFastMove = false
+                    
+                    if MyHitbox then
+                        -- Jika jarak target berdirinya kurang dari atau sama dengan 1.5 blok, berarti kita cuma pindah ke sebelah (Ngebut!)
+                        -- Kalau lebih dari itu (berarti baru Start atau pindah baris), jalan santai!
+                        local distToTarget = (Vector3.new(standX * getgenv().GridSize, standY * getgenv().GridSize, 0) - Vector3.new(MyHitbox.Position.X, MyHitbox.Position.Y, 0)).Magnitude
+                        if distToTarget <= 7 then 
+                            useFastMove = true
+                        end
+                    end
 
+                    -- Eksekusi jalan dengan kecepatan yang tepat
+                    WalkToGrid(standX, standY, useFastMove)
+                    
+                    local lockCFrame = MyHitbox and MyHitbox.CFrame or nil
                     local tries = 0
+                    
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
-                        
                         if not NeedsBreaking(currentX, blockTargetY) then break end
 
                         if MyHitbox and lockCFrame then
