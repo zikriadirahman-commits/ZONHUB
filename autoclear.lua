@@ -1,9 +1,9 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (V60 PLAYER CONTROL & ANTI-JITTER) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (V61 SMOOTH FLOW & MAX HOVER) ]] --
 
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v60 - Player Control & Anti-Jitter" 
+getgenv().ScriptVersion = "AutoClear v61 - Smooth Flow & Max Hover" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL (DEFAULT)
@@ -15,12 +15,12 @@ getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
 
 -- Variabel Custom Baru (Bisa diatur via Slider)
-getgenv().AC_MaxHits = 40       -- Default 40 pukulan sebelum pindah
-getgenv().AC_HoverHeight = 4    -- Default tinggi melayang (4 stud)
-getgenv().AC_HitDelay = 30      -- Default jeda pukul (30ms = 0.03 detik)
+getgenv().AC_MaxHits = 40       
+getgenv().AC_HoverHeight = 6    -- [!] DEFAULT NAIK JADI 6 AGAR BEBAS NYANGKUT
+getgenv().AC_HitDelay = 30      
 
 getgenv().GridSize = 4.5     
-getgenv().GlideSpeed = 1.5   
+getgenv().GlideSpeed = 2.5      -- [!] DIPERCEPAT SEDIKIT AGAR PERPINDAHAN LEBIH LANCAR & MENGALIR
 
 -- Variabel Memori (Resume State)
 getgenv().AC_ResumeX = nil
@@ -53,7 +53,6 @@ local Theme = { Item = Color3.fromRGB(45, 45, 45), Text = Color3.fromRGB(255, 25
 local function CreateToggle(Parent, Text, Var) local Btn = Instance.new("TextButton", Parent); Btn.BackgroundColor3 = Theme.Item; Btn.Size = UDim2.new(1, -10, 0, 35); Btn.Text = ""; Btn.AutoButtonColor = false; local C = Instance.new("UICorner", Btn); C.CornerRadius = UDim.new(0, 6); local T = Instance.new("TextLabel", Btn); T.Text = Text; T.TextColor3 = Theme.Text; T.Font = Enum.Font.GothamSemibold; T.TextSize = 12; T.Size = UDim2.new(1, -40, 1, 0); T.Position = UDim2.new(0, 10, 0, 0); T.BackgroundTransparency = 1; T.TextXAlignment = Enum.TextXAlignment.Left; local IndBg = Instance.new("Frame", Btn); IndBg.Size = UDim2.new(0, 36, 0, 18); IndBg.Position = UDim2.new(1, -45, 0.5, -9); IndBg.BackgroundColor3 = Color3.fromRGB(30,30,30); local IC = Instance.new("UICorner", IndBg); IC.CornerRadius = UDim.new(1,0); local Dot = Instance.new("Frame", IndBg); Dot.Size = UDim2.new(0, 14, 0, 14); Dot.Position = UDim2.new(0, 2, 0.5, -7); Dot.BackgroundColor3 = Color3.fromRGB(100,100,100); local DC = Instance.new("UICorner", Dot); DC.CornerRadius = UDim.new(1,0); Btn.MouseButton1Click:Connect(function() getgenv()[Var] = not getgenv()[Var]; if getgenv()[Var] then Dot:TweenPosition(UDim2.new(1, -16, 0.5, -7), "Out", "Quad", 0.2, true); Dot.BackgroundColor3 = Color3.new(1,1,1); IndBg.BackgroundColor3 = Theme.Purple else Dot:TweenPosition(UDim2.new(0, 2, 0.5, -7), "Out", "Quad", 0.2, true); Dot.BackgroundColor3 = Color3.fromRGB(100,100,100); IndBg.BackgroundColor3 = Color3.fromRGB(30,30,30) end end) end
 local function CreateSlider(Parent, Text, Min, Max, Default, Var) local Frame = Instance.new("Frame", Parent); Frame.BackgroundColor3 = Theme.Item; Frame.Size = UDim2.new(1, -10, 0, 45); local C = Instance.new("UICorner", Frame); C.CornerRadius = UDim.new(0, 6); local Label = Instance.new("TextLabel", Frame); Label.Text = Text .. ": " .. Default; Label.TextColor3 = Theme.Text; Label.BackgroundTransparency = 1; Label.Size = UDim2.new(1, 0, 0, 20); Label.Position = UDim2.new(0, 10, 0, 2); Label.Font = Enum.Font.GothamSemibold; Label.TextSize = 12; Label.TextXAlignment = Enum.TextXAlignment.Left; local SliderBg = Instance.new("TextButton", Frame); SliderBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30); SliderBg.Position = UDim2.new(0, 10, 0, 28); SliderBg.Size = UDim2.new(1, -20, 0, 6); SliderBg.Text = ""; SliderBg.AutoButtonColor = false; local SC = Instance.new("UICorner", SliderBg); SC.CornerRadius = UDim.new(1,0); local Fill = Instance.new("Frame", SliderBg); Fill.BackgroundColor3 = Theme.Purple; Fill.Size = UDim2.new((Default-Min)/(Max-Min), 0, 1, 0); local FC = Instance.new("UICorner", Fill); FC.CornerRadius = UDim.new(1,0); local Dragging = false; local function Update(input) local SizeX = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1); local Val = math.floor(Min + ((Max - Min) * SizeX)); Fill.Size = UDim2.new(SizeX, 0, 1, 0); Label.Text = Text .. ": " .. Val; getgenv()[Var] = Val; 
     
-    -- Reset Resume State jika mengubah Area (X dan Y)
     if string.find(Var, "AC_Start") or string.find(Var, "AC_End") then
         getgenv().AC_ResumeX = nil; getgenv().AC_ResumeY = nil; getgenv().AC_ArahKanan = nil; 
     end
@@ -66,9 +65,9 @@ CreateSlider(TargetPage, "End X", 0, 500, 100, "AC_EndX")
 CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
--- MENU KUSTOMISASI BARU
-CreateSlider(TargetPage, "Max Hits (Batas Sabar/Geser)", 10, 200, 40, "AC_MaxHits")
-CreateSlider(TargetPage, "Hover Height (Tinggi Melayang)", 2, 8, 4, "AC_HoverHeight")
+-- MENU KUSTOMISASI
+CreateSlider(TargetPage, "Max Hits (Batas Sabar)", 10, 200, 40, "AC_MaxHits")
+CreateSlider(TargetPage, "Hover Height (Tinggi Melayang)", 2, 10, 6, "AC_HoverHeight") -- Default 6
 CreateSlider(TargetPage, "Hit Delay ms (Kecepatan Pukul)", 0, 100, 30, "AC_HitDelay")
 
 -- ========================================== --
@@ -164,7 +163,7 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- SISTEM GLIDE SERVER-SYNC VECTOR3
+-- SISTEM GLIDE SERVER-SYNC (LEBIH LANCAR)
 -- ========================================== --
 local function ServerSyncedGlide(targetPos)
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
@@ -175,7 +174,6 @@ local function ServerSyncedGlide(targetPos)
     
     while getgenv().AutoClearEnabled do
         local currentPos = Hitbox.Position
-        -- Kunci sumbu Z agar tidak belok-belok ke belakang
         local fixedTarget = Vector3.new(targetPos.X, targetPos.Y, currentPos.Z)
         local distance = (fixedTarget - currentPos).Magnitude
         
@@ -235,7 +233,7 @@ task.spawn(function()
                         local hoverY_Grid = blockTargetY + 1
 
                         -- ========================================== --
-                        -- [!] LOGIKA TEROWONGAN (MUNDUR 1 BLOK)
+                        -- LOGIKA TEROWONGAN (MUNDUR 1 BLOK)
                         -- ========================================== --
                         if IsUnbreakable(currentX, hoverY_Grid) then
                             local standX = currentX - stepX
@@ -243,7 +241,6 @@ task.spawn(function()
 
                             ServerSyncedGlide(tunnelPos)
                             
-                            -- Merekam CFrame tempat pendaratan persis agar tidak getar
                             local exactHitboxCF = Hitbox and Hitbox.CFrame
                             local exactHRPCF = HRP and HRP.CFrame
 
@@ -253,7 +250,6 @@ task.spawn(function()
                             local tunnelFailsafe = 0
                             while NeedsBreaking(currentX, blockTargetY) and getgenv().AutoClearEnabled do
                                 
-                                -- Kunci total anti-getar
                                 if Hitbox and exactHitboxCF then Hitbox.CFrame = exactHitboxCF; Hitbox.Velocity = Vector3.zero end
                                 if HRP and exactHRPCF then HRP.CFrame = exactHRPCF; HRP.Velocity = Vector3.zero end
                                 if PlayerMovement and exactHitboxCF then pcall(function() PlayerMovement.Position = exactHitboxCF.Position end) end
@@ -271,7 +267,6 @@ task.spawn(function()
                                     break
                                 end
                                 
-                                -- Gunakan Delay Custom dari Slider (dibagi 1000 karena ms)
                                 task.wait(getgenv().AC_HitDelay / 1000)
                             end
                             
@@ -280,14 +275,13 @@ task.spawn(function()
                             
                         else
                             -- ========================================== --
-                            -- [!] GLIDE NORMAL DI ATAS
+                            -- GLIDE NORMAL DI ATAS
                             -- ========================================== --
                             local targetY_Pos = (hoverY_Grid * getgenv().GridSize) + getgenv().AC_HoverHeight
                             local hoverPos = Vector3.new(currentX * getgenv().GridSize, targetY_Pos, lockZ)
 
                             ServerSyncedGlide(hoverPos)
                             
-                            -- Kunci di titik berhentinya
                             local exactHitboxCF = Hitbox and Hitbox.CFrame
                             local exactHRPCF = HRP and HRP.CFrame
 
@@ -297,7 +291,6 @@ task.spawn(function()
                             local extremeFailsafe = 0
                             while NeedsBreaking(currentX, blockTargetY) and getgenv().AutoClearEnabled do
                                 
-                                -- Kunci total anti-getar
                                 if Hitbox and exactHitboxCF then Hitbox.CFrame = exactHitboxCF; Hitbox.Velocity = Vector3.zero end
                                 if HRP and exactHRPCF then HRP.CFrame = exactHRPCF; HRP.Velocity = Vector3.zero end
                                 if PlayerMovement and exactHitboxCF then pcall(function() PlayerMovement.Position = exactHitboxCF.Position end) end
@@ -315,7 +308,6 @@ task.spawn(function()
                                     break
                                 end
                                 
-                                -- Gunakan Delay Custom dari Slider
                                 task.wait(getgenv().AC_HitDelay / 1000)
                             end
                             
