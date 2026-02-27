@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (SMOOTH WALK / JALAN NORMAL) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (TRUE SMOOTH WALK / JALAN BIASA) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v33 - Smooth Walk Fix" 
+getgenv().ScriptVersion = "AutoClear v34 - True Smooth Walk" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -14,8 +14,8 @@ getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
-getgenv().BreakDelay = 0.01      -- Mukul kilat tetap dipertahankan
-getgenv().WalkSpeedTime = 0.15   -- [BARU] Kecepatan jalan per 1 blok. Makin besar angkanya = makin lambat & aman.
+getgenv().BreakDelay = 0.01   
+getgenv().StepDelay = 0.15    -- Waktu tempuh per 1 blok. (Besarkan jika masih dirasa terlalu cepat)
 getgenv().MaxHitFailsafe = 50 
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
@@ -26,7 +26,6 @@ local LP = Players.LocalPlayer
 local RS = game:GetService("ReplicatedStorage")
 local UIS = game:GetService("UserInputService")
 local VirtualUser = game:GetService("VirtualUser") 
-local TweenService = game:GetService("TweenService") -- [BARU] Sistem untuk jalan mulus
 
 -- Anti AFK
 LP.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
@@ -52,7 +51,7 @@ CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- FUNGSI TERBANG CX (ANTI JATUH)
+-- FUNGSI TERBANG CX
 -- ========================================== --
 local function ToggleCXFly(state)
     local Char = LP.Character
@@ -66,12 +65,14 @@ local function ToggleCXFly(state)
     for _, part in ipairs(parts) do
         if part then
             if state then
+                part.CanCollide = false
                 local bv = part:FindFirstChild("ZON_FlyBV") or Instance.new("BodyVelocity")
                 bv.Name = "ZON_FlyBV"
                 bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
                 bv.Velocity = Vector3.zero 
                 bv.Parent = part
             else
+                part.CanCollide = true
                 if part:FindFirstChild("ZON_FlyBV") then part.ZON_FlyBV:Destroy() end
             end
         end
@@ -91,7 +92,6 @@ end
 
 local function IsPositionSafe(gridX, gridY)
     if gridX < getgenv().AC_StartX or gridX > getgenv().AC_EndX then return false end
-    
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
     local startZ = MyHitbox and MyHitbox.Position.Z or 0
@@ -115,7 +115,6 @@ end
 
 local function NeedsBreaking(gridX, gridY)
     if getgenv().AC_Blacklist[gridX .. "," .. gridY] then return false end
-    
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
     local startZ = MyHitbox and MyHitbox.Position.Z or 0
@@ -137,7 +136,7 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- [ BARU! ] JALAN NORMAL SECARA PERLAHAN (SMOOTH TWEEN)
+-- [ BARU! ] JALAN MANUAL PERLAHAN SECARA HALUS (LERP)
 -- ========================================== --
 local function WalkToGrid(tX, tY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
@@ -158,15 +157,23 @@ local function WalkToGrid(tX, tY)
             currentY = currentY + (tY > currentY and 1 or -1) 
         end
         
-        local newWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
+        local targetWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
         
-        -- Berjalan perlahan menggunakan TweenService (TIDAK INSTAN TELEPORT)
-        local tInfo = TweenInfo.new(getgenv().WalkSpeedTime, Enum.EasingStyle.Linear)
-        local walkTween = TweenService:Create(MyHitbox, tInfo, {CFrame = CFrame.new(newWorldPos)})
-        walkTween:Play()
-        walkTween.Completed:Wait() -- Tunggu sampai karakter sampai ke grid sebelum lanjut
-        
-        if PlayerMovement then pcall(function() PlayerMovement.Position = newWorldPos end) end
+        -- LOGIKA MENSIMULASIKAN JALAN (10 LANGKAH KECIL PER BLOK)
+        local startPos = MyHitbox.Position
+        local steps = 10 
+        for i = 1, steps do
+            if not getgenv().AutoClearEnabled then break end
+            
+            -- Memecah jarak jauh menjadi jarak sangat pendek secara perlahan
+            local lerpPos = startPos:Lerp(targetWorldPos, i / steps)
+            MyHitbox.CFrame = CFrame.new(lerpPos)
+            
+            if PlayerMovement then pcall(function() PlayerMovement.Position = lerpPos end) end
+            
+            -- Jeda sangat kecil supaya terlihat seperti jalan di layar dan disetujui server
+            task.wait(getgenv().StepDelay / steps) 
+        end
         
         failsafe = failsafe + 1
         if failsafe > 30 then break end 
@@ -174,7 +181,7 @@ local function WalkToGrid(tX, tY)
 end
 
 -- ========================================== --
--- LOGIKA ZIG-ZAG UTAMA 
+-- LOGIKA ZIG-ZAG UTAMA
 -- ========================================== --
 local isRunning = false
 
@@ -222,10 +229,8 @@ task.spawn(function()
                         maxUp = maxUp + 1
                     end
                     
-                    -- Panggil fungsi jalan mulusnya
                     WalkToGrid(standX, standY)
                     
-                    -- HANCURKAN BLOCK
                     local tries = 0
                     while tries < getgenv().MaxHitFailsafe do
                         if not getgenv().AutoClearEnabled then break end
