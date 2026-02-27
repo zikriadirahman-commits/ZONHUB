@@ -1,9 +1,9 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (V49 BASE + FAST SKIP FIXED) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (V53 ANTI-JITTER & SKIP UNBREAKABLE) ]] --
 
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v49 - Server Glide & Fast Next" 
+getgenv().ScriptVersion = "AutoClear v53 - Stable Glide & Smart Skip" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL
@@ -16,7 +16,8 @@ getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.03  
-getgenv().GlideSpeed = 1.5   -- Standar mulus (jangan terlalu besar agar tidak teleport)
+getgenv().GlideSpeed = 1.5   
+getgenv().MaxHits = 25       -- Cepat geser (0.7 detik)
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 
@@ -51,7 +52,7 @@ CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- FUNGSI TERBANG FISIK (MURNI BAWAAN)
+-- FUNGSI TERBANG FISIK & ANTI-GRAVITASI
 -- ========================================== --
 local function ToggleCXFly(state)
     local Char = LP.Character
@@ -80,7 +81,7 @@ local function ToggleCXFly(state)
 end
 
 -- ========================================== --
--- SENSOR PINTAR BLOK & BEDROCK (DIKEMBALIKAN)
+-- SENSOR PINTAR: DETEKSI BLOK KERAS (BEDROCK/DOOR)
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -90,7 +91,8 @@ local function GetFilterObjects()
     return filter
 end
 
-local function IsBedrock(gridX, gridY)
+-- FUNGSI BARU: Cegah karakter mendekati halangan
+local function IsUnbreakable(gridX, gridY)
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
     local startZ = Hitbox and Hitbox.Position.Z or 0
     local checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, startZ)
@@ -99,11 +101,14 @@ local function IsBedrock(gridX, gridY)
     params.FilterDescendantsInstances = GetFilterObjects()
     params.FilterType = Enum.RaycastFilterType.Exclude
 
-    -- Sensor dikembalikan ke 3x3x50 agar tidak error/diam saja
     local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
     for _, part in ipairs(parts) do
-        if part:IsA("BasePart") and string.match(string.lower(part.Name), "bedrock") then
-            return true
+        if part:IsA("BasePart") then
+            local pName = string.lower(part.Name)
+            -- JIKA KETEMU KATA INI, LANGSUNG DITANDAI SEBAGAI "TIDAK BISA DIHANCURKAN"
+            if string.find(pName, "bedrock") or string.find(pName, "door") or string.find(pName, "main") or string.find(pName, "portal") or string.find(pName, "border") or string.find(pName, "spawn") then
+                return true
+            end
         end
     end
     return false
@@ -120,7 +125,6 @@ local function NeedsBreaking(gridX, gridY)
     params.FilterDescendantsInstances = GetFilterObjects()
     params.FilterType = Enum.RaycastFilterType.Exclude
 
-    -- Sensor dikembalikan ke 3x3x50 agar akurat mendeteksi blok/background
     local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then 
@@ -209,37 +213,36 @@ task.spawn(function()
                 for currentX = startX, endX, stepX do
                     if not getgenv().AutoClearEnabled then break end
                     
-                    if not NeedsBreaking(currentX, blockTargetY) then continue end
-                    
-                    if IsBedrock(currentX, blockTargetY) then
+                    -- [!] FILTER 1: Kalau itu Door/Bedrock, blacklist lalu skip ke blok selanjutnya
+                    if IsUnbreakable(currentX, blockTargetY) then
                         getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                         continue 
                     end
 
-                    -- MELUNCUR KE TARGET
+                    -- [!] FILTER 2: Kalau tidak ada Dirt, skip juga
+                    if not NeedsBreaking(currentX, blockTargetY) then continue end
+
+                    -- MELUNCUR KE TARGET (Karena sudah di-filter, ini dijamin 100% Dirt asli)
                     local hoverY = blockTargetY + 1
                     ServerSyncedGlide(currentX, hoverY)
                     
                     local extremeFailsafe = 0
                     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
                     local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-                    local lockZ = Hitbox and Hitbox.Position.Z or 0
-                    local lockPos = Vector3.new(currentX * getgenv().GridSize, hoverY * getgenv().GridSize, lockZ)
 
                     -- ========================================== --
-                    -- STRICT BREAK LOOP (INSTAN PINDAH)
+                    -- STRICT BREAK LOOP (ANTI-GETAR)
                     -- ========================================== --
-                    -- Memakai loop while agar dia tidak membuang waktu memanggil Glide lagi, 
-                    -- sehingga saat server melenyapkan block, script langsung menyadari & putus loop-nya.
                     while NeedsBreaking(currentX, blockTargetY) and getgenv().AutoClearEnabled do
                         
-                        -- Mengunci koordinat karakter secara absolut di tempat
-                        if Hitbox then Hitbox.CFrame = CFrame.new(lockPos); Hitbox.Velocity = Vector3.zero end
-                        if HRP then HRP.CFrame = CFrame.new(lockPos); HRP.Velocity = Vector3.zero end
-                        if PlayerMovement then pcall(function() PlayerMovement.Position = lockPos end) end
+                        -- Untuk mencegah getar: Kita tidak perlu memaksa ubah posisi (CFrame) 
+                        -- Kita cukup menahan Velocity (Kecepatan) ke angka 0. 
+                        -- BodyVelocity (anti-gravitasi) akan mengurus sisanya agar dia diam di udara.
+                        if Hitbox then Hitbox.Velocity = Vector3.zero end
+                        if HRP then HRP.Velocity = Vector3.zero end
                         
-                        -- Cek darurat Bedrock
-                        if IsBedrock(currentX, blockTargetY) then
+                        -- Cek darurat kalau ternyata bedrock tersembunyi
+                        if IsUnbreakable(currentX, blockTargetY) then
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                             break
                         end
@@ -249,10 +252,7 @@ task.spawn(function()
                         
                         extremeFailsafe = extremeFailsafe + 1
                         
-                        -- [!] INI BAGIAN YANG SAYA UBAH: DARI 150 JADI 25
-                        -- Kalau dia sudah mukul 25 kali (~0.7 detik) tapi sensornya masih nyangkut ke pemandangan, 
-                        -- dia langsung skip paksa ke blok sebelahnya. Nggak ada lagi nunggu mematung!
-                        if extremeFailsafe > 25 then 
+                        if extremeFailsafe > getgenv().MaxHits then 
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                             break
                         end
