@@ -1,9 +1,9 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (V47 REAL SMOOTH GLIDE & STRICT BREAK) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (V48 INSTANT NEXT & PERFECT SENSOR) ]] --
 
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v47 - Server-Synced Glide & Strict Break" 
+getgenv().ScriptVersion = "AutoClear v48 - Instant Next & Strict Break" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL
@@ -16,9 +16,7 @@ getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
 getgenv().BreakDelay = 0.03  
-
--- Kecepatan Glide: Semakin kecil semakin lambat & mulus. (1.5 adalah standar aman)
-getgenv().GlideSpeed = 1.5   
+getgenv().GlideSpeed = 1.5   -- Kecepatan luncur antar blok
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
 
@@ -53,7 +51,7 @@ CreateSlider(TargetPage, "Start Y", 0, 150, 37, "AC_StartY")
 CreateSlider(TargetPage, "End Y", 0, 150, 6, "AC_EndY")
 
 -- ========================================== --
--- FUNGSI TERBANG CX (MURNI V43 BAWAAN)
+-- FUNGSI TERBANG CX 
 -- ========================================== --
 local function ToggleCXFly(state)
     local Char = LP.Character
@@ -82,7 +80,7 @@ local function ToggleCXFly(state)
 end
 
 -- ========================================== --
--- SENSOR PINTAR BLOK & BEDROCK
+-- SENSOR PINTAR BLOK & BEDROCK (DIPERTAJAM)
 -- ========================================== --
 local function GetFilterObjects()
     local filter = {LP.Character, workspace.CurrentCamera}
@@ -101,7 +99,8 @@ local function IsBedrock(gridX, gridY)
     params.FilterDescendantsInstances = GetFilterObjects()
     params.FilterType = Enum.RaycastFilterType.Exclude
 
-    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
+    -- Sensor diperkecil agar tidak mendeteksi blok tetangga
+    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(2.5, 2.5, 20), params)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") and string.match(string.lower(part.Name), "bedrock") then
             return true
@@ -121,7 +120,8 @@ local function NeedsBreaking(gridX, gridY)
     params.FilterDescendantsInstances = GetFilterObjects()
     params.FilterType = Enum.RaycastFilterType.Exclude
 
-    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params)
+    -- Sensor diperkecil agar fokus ke 1 kotak saja (mempercepat deteksi)
+    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(2.5, 2.5, 20), params)
     for _, part in ipairs(parts) do
         if part:IsA("BasePart") then 
             local pName = string.lower(part.Name)
@@ -135,7 +135,7 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- SISTEM GLIDE SERVER-SYNC (ANTI VISUAL BUG)
+-- SISTEM GLIDE SERVER-SYNC (FOR LOOP GUARANTEE)
 -- ========================================== --
 local function ServerSyncedGlide(gX, gY)
     local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
@@ -144,38 +144,28 @@ local function ServerSyncedGlide(gX, gY)
 
     local startZ = Hitbox.Position.Z
     local targetPos = Vector3.new(gX * getgenv().GridSize, gY * getgenv().GridSize, startZ)
+    local startPos = Hitbox.Position
     
+    local distance = (startPos - targetPos).Magnitude
     local speed = getgenv().GlideSpeed 
     
-    while getgenv().AutoClearEnabled do
-        local currentPos = Hitbox.Position
-        local distance = (targetPos - currentPos).Magnitude
+    -- Kalkulasi pasti jumlah langkah (anti nyangkut)
+    local steps = math.ceil(distance / speed)
+    if steps < 1 then steps = 1 end
+
+    for i = 1, steps do
+        if not getgenv().AutoClearEnabled then break end
         
-        if distance <= speed then
-            -- Snap akhir ketika sudah dekat
-            Hitbox.CFrame = CFrame.new(targetPos)
-            Hitbox.Velocity = Vector3.zero
-            HRP.CFrame = CFrame.new(targetPos)
-            HRP.Velocity = Vector3.zero
-            -- UPDATE SERVER
-            if PlayerMovement then pcall(function() PlayerMovement.Position = targetPos end) end
-            break
-        else
-            -- Bergerak perlahan mendekati target
-            local direction = (targetPos - currentPos).Unit
-            local nextPos = currentPos + (direction * speed)
-            
-            Hitbox.CFrame = CFrame.new(nextPos)
-            Hitbox.Velocity = Vector3.zero
-            HRP.CFrame = CFrame.new(nextPos)
-            HRP.Velocity = Vector3.zero
-            
-            -- INI KUNCI UTAMANYA: Mengirim pergerakan ke server setiap frame
-            -- Sehingga server tahu kita BENAR-BENAR bergerak, bukan cuma visual
-            if PlayerMovement then pcall(function() PlayerMovement.Position = nextPos end) end
-        end
+        local alpha = i / steps
+        local currentPos = startPos:Lerp(targetPos, alpha)
         
-        task.wait() -- Tunggu 1 frame
+        Hitbox.CFrame = CFrame.new(currentPos)
+        Hitbox.Velocity = Vector3.zero
+        HRP.CFrame = CFrame.new(currentPos)
+        HRP.Velocity = Vector3.zero
+        
+        if PlayerMovement then pcall(function() PlayerMovement.Position = currentPos end) end
+        task.wait()
     end
 end
 
@@ -190,7 +180,6 @@ task.spawn(function()
             isRunning = true
             local arahKanan = true 
 
-            -- Menggunakan sistem terbang asli yang aman
             ToggleCXFly(true)
 
             local highestTargetY = getgenv().AC_StartY
@@ -225,36 +214,51 @@ task.spawn(function()
                         continue 
                     end
 
-                    -- MELUNCUR DARI POSISI SEKARANG KE TARGET (X=0 dan seterusnya)
+                    -- MELUNCUR KE TARGET
                     local hoverY = blockTargetY + 1
                     ServerSyncedGlide(currentX, hoverY)
                     
                     local extremeFailsafe = 0
+                    
+                    -- Simpan posisi statis untuk dikunci
+                    local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
+                    local lockZ = Hitbox and Hitbox.Position.Z or 0
+                    local lockPos = Vector3.new(currentX * getgenv().GridSize, hoverY * getgenv().GridSize, lockZ)
 
                     -- ========================================== --
-                    -- STRICT BREAK LOOP (HANCURKAN SAMPAI AKAR)
+                    -- STRICT BREAK LOOP (INSTANT NEXT)
                     -- ========================================== --
-                    repeat
-                        if not getgenv().AutoClearEnabled then break end
+                    while NeedsBreaking(currentX, blockTargetY) and getgenv().AutoClearEnabled do
                         
-                        -- Pastikan tetap di posisi ini
-                        ServerSyncedGlide(currentX, hoverY)
+                        -- Tahan karakter di tempat, tidak perlu panggil fungsi meluncur lagi
+                        local HRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+                        if Hitbox then
+                            Hitbox.CFrame = CFrame.new(lockPos)
+                            Hitbox.Velocity = Vector3.zero
+                        end
+                        if HRP then
+                            HRP.CFrame = CFrame.new(lockPos)
+                            HRP.Velocity = Vector3.zero
+                        end
                         
-                        RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
-                        task.wait(getgenv().BreakDelay)
-                        
+                        -- Cek Bedrock mendadak
                         if IsBedrock(currentX, blockTargetY) then
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                             break
                         end
-
+                        
+                        -- Eksekusi Pukul
+                        RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY))
+                        
                         extremeFailsafe = extremeFailsafe + 1
-                        if extremeFailsafe > 200 then
+                        if extremeFailsafe > 100 then -- Failsafe dipersingkat jadi max 3 detik per blok
                             getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true
                             break
                         end
-
-                    until not NeedsBreaking(currentX, blockTargetY) 
+                        
+                        task.wait(getgenv().BreakDelay)
+                    end
+                    -- BEGITU LOOP INI SELESAI (BLOK HILANG), DIA LANGSUNG OTOMATIS GESER KE X BERIKUTNYA
                 end
                 
                 arahKanan = not arahKanan 
