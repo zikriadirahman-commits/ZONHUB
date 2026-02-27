@@ -1,8 +1,8 @@
--- [[ ZONHUB - AUTOCLEAR MODULE (SMART DUAL-SPEED FIX) ]] --
+-- [[ ZONHUB - AUTOCLEAR MODULE (PABRIK MOVEMENT + V28 JUMP LOGIC) ]] --
 local TargetPage = ... 
 if not TargetPage then warn("Module harus di-load dari ZonIndex!") return end
 
-getgenv().ScriptVersion = "AutoClear v40 - Dual Speed Perfect" 
+getgenv().ScriptVersion = "AutoClear v41 - Fast Snappy & Smart Jump" 
 
 -- ========================================== --
 -- VARIABEL GLOBAL 
@@ -14,9 +14,9 @@ getgenv().AC_StartY = 37
 getgenv().AC_EndY = 6
 
 getgenv().GridSize = 4.5     
-getgenv().BreakDelay = 0.03       -- Kecepatan pukul
-getgenv().NormalStepDelay = 0.15  -- [LOGIKA 1] Kecepatan jalan santai (Pas awal start & pindah baris)
-getgenv().FastStepDelay = 0.04    -- [LOGIKA 2] Kecepatan NGEBUT (Pas geser ke sebelahnya)
+getgenv().BreakDelay = 0.03       -- Sabar dikit agar background pecah
+getgenv().NormalStepDelay = 0.1   -- [LOGIKA 1] Jalan per-grid persis script Pabrik (Pas awal & pindah baris)
+getgenv().FastStepDelay = 0       -- [LOGIKA 2] Kecepatan KILAT / INSTAN (Pas pindah ke blok sebelahnya)
 getgenv().MaxHitFailsafe = 100 
 
 getgenv().AC_Blacklist = getgenv().AC_Blacklist or {}
@@ -91,6 +91,7 @@ local function GetFilterObjects()
     return filter
 end
 
+-- MENDETEKSI BEDROCK DAN PINTU
 local function IsSolidObstacle(gridX, gridY)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
@@ -136,7 +137,7 @@ local function NeedsBreaking(gridX, gridY)
 end
 
 -- ========================================== --
--- PERGERAKAN PER-GRID PABRIK (DENGAN 2 KECEPATAN)
+-- JALAN PER-GRID PABRIK + LOGIKA LOMPAT V28
 -- ========================================== --
 local function WalkToGrid(tX, tY, isFast)
     local HitboxFolder = workspace:FindFirstChild("Hitbox")
@@ -146,37 +147,56 @@ local function WalkToGrid(tX, tY, isFast)
     local startZ = MyHitbox.Position.Z
     local currentX = math.floor(MyHitbox.Position.X / getgenv().GridSize + 0.5)
     local currentY = math.floor(MyHitbox.Position.Y / getgenv().GridSize + 0.5)
+    
+    local stuckCounter = 0
 
-    local failsafe = 0
     while (currentX ~= tX or currentY ~= tY) do
         if not getgenv().AutoClearEnabled then break end
         
-        -- Bergerak 1 grid demi 1 grid persis seperti Pabrik
+        local nextX = currentX
+        local nextY = currentY
+
+        -- [KEMBALI KE LOGIKA LOMPAT V28] --
         if currentX ~= tX then 
-            currentX = currentX + (tX > currentX and 1 or -1)
-        elseif currentY ~= tY then 
-            currentY = currentY + (tY > currentY and 1 or -1) 
+            local stepDir = (tX > currentX) and 1 or -1
+            -- JIKA DEPAN ADA PINTU/BEDROCK, TERBANG NAIK 1 BLOCK DULU
+            if IsSolidObstacle(currentX + stepDir, currentY) then
+                nextY = currentY + 1
+            else
+                nextX = currentX + stepDir
+            end
+        elseif currentY < tY then 
+            nextY = currentY + 1
+        elseif currentY > tY then 
+            if IsSolidObstacle(currentX, currentY - 1) then break end
+            nextY = currentY - 1 
         end
         
-        local targetWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
-        local startPos = MyHitbox.Position
-        
-        -- [ PENENTUAN KECEPATAN ]
-        local timeToWait = isFast and getgenv().FastStepDelay or getgenv().NormalStepDelay
-        local steps = isFast and 5 or 15 -- Cepat pakai 5 frame, Santai pakai 15 frame
-        
-        for i = 1, steps do
-            if not getgenv().AutoClearEnabled then break end
-            
-            local lerpPos = startPos:Lerp(targetWorldPos, i / steps)
-            MyHitbox.CFrame = CFrame.new(lerpPos)
-            if PlayerMovement then pcall(function() PlayerMovement.Position = lerpPos end) end
-            
-            task.wait(timeToWait / steps) 
+        -- Anti-stuck loop abadi
+        if nextX == currentX and nextY == currentY then
+            stuckCounter = stuckCounter + 1
+            if stuckCounter > 3 then break end
+        else
+            stuckCounter = 0
         end
+
+        currentX = nextX
+        currentY = nextY
         
-        failsafe = failsafe + 1
-        if failsafe > 30 then break end 
+        -- Langsung CFrame per grid (seperti script Pabrik, tanpa Lerp animasi)
+        local newWorldPos = Vector3.new(currentX * getgenv().GridSize, currentY * getgenv().GridSize, startZ)
+        MyHitbox.CFrame = CFrame.new(newWorldPos)
+        MyHitbox.Velocity = Vector3.zero
+        
+        if PlayerMovement then pcall(function() PlayerMovement.Position = newWorldPos end) end
+        
+        -- DUAL SPEED LOGIC
+        local delayTime = isFast and getgenv().FastStepDelay or getgenv().NormalStepDelay
+        if delayTime > 0 then
+            task.wait(delayTime)
+        else
+            task.wait() -- Tunggu seminimal mungkin agar ultra-fast
+        end
     end
 end
 
@@ -212,7 +232,6 @@ task.spawn(function()
                 local startX, endX, stepX = getgenv().AC_StartX, getgenv().AC_EndX, 1
                 if not arahKanan then startX, endX, stepX = getgenv().AC_EndX, getgenv().AC_StartX, -1 end
 
-                -- Variabel Penanda Awal Baris
                 local isFirstBlock = true 
 
                 for currentX = startX, endX, stepX do
@@ -223,23 +242,15 @@ task.spawn(function()
                     local standX = currentX - stepX
                     local standY = blockTargetY
 
-                    -- LOGIKA X=0 & BEDROCK/DOOR
+                    -- LOGIKA X=0 MENTOK KIRI/KANAN
                     if standX < getgenv().AC_StartX or standX > getgenv().AC_EndX then
                         standX = currentX
                         standY = blockTargetY + 1
-                    else
-                        local maxUp = 0
-                        while IsSolidObstacle(standX, standY) and maxUp < 5 do
-                            standY = standY + 1
-                            maxUp = maxUp + 1
-                        end
                     end
                     
-                    -- JALANKAN LOGIKA JALAN PINTAR
-                    -- Jika ini blok pertama yang dihampiri, jalan SANTAI.
-                    -- Setelah memecahkan blok pertama, sisanya akan jalan NGEBUT.
+                    -- JALAN KE TARGET
                     WalkToGrid(standX, standY, not isFirstBlock)
-                    isFirstBlock = false -- Tandai bahwa blok pertama sudah dilewati
+                    isFirstBlock = false 
                     
                     local HitboxFolder = workspace:FindFirstChild("Hitbox")
                     local MyHitbox = HitboxFolder and HitboxFolder:FindFirstChild(LP.Name)
