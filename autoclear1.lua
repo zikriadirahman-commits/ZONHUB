@@ -1,5 +1,3 @@
-local obf_stringchar=string.char;local obf_stringbyte=string.byte;local obf_stringsub=string.sub;local obf_bitlib=bit32 or bit ;local obf_XOR=obf_bitlib.bxor;local obf_tableconcat=table.concat;local obf_tableinsert=table.insert;local function LUAOBFUSACTOR_DECRYPT_STR_0(LUAOBFUSACTOR_STR,LUAOBFUSACTOR_KEY) local result={};for i=1, #LUAOBFUSACTOR_STR do obf_tableinsert(result,obf_stringchar(obf_XOR(obf_stringbyte(obf_stringsub(LUAOBFUSACTOR_STR,i,i + 1 )),obf_stringbyte(obf_stringsub(LUAOBFUSACTOR_KEY,1 + (i% #LUAOBFUSACTOR_KEY) ,1 + (i% #LUAOBFUSACTOR_KEY) + 1 )))%256 ));end return obf_tableconcat(result);end local obf_stringmatch=string.match;local obf_tonumber=tonumber;local obf_pcall=pcall;local function obf_adjnqwidqwjhdpoq() local function obf_wrapperfunc(obf_arg) if obf_arg then local TargetPage=...;if  not TargetPage then local FlatIdent_7126A=0;local FlatIdent_7126A;while true do if (FlatIdent_7126A==0) then FlatIdent_7126A=0;while true do if (FlatIdent_7126A==0) then local FlatIdent_2A9F7=0;while true do if (FlatIdent_2A9F7==0) then warn(LUAOBFUSACTOR_DECRYPT_STR_0("\3\216\21\146\34\210\81\143\47\197\4\148\110\211\24\202\34\216\16\131\110\211\16\149\39\151\43\136\32\254\31\131\43\207\80","\231\78\183\113"));return;end end end end break;end end end getgenv().ScriptVersion=LUAOBFUSACTOR_DECRYPT_STR_0("\132\95\200\79\122\185\63\44\183\10\202\22\12\245\119\109\159\79\206\79\20\134\42\36\171\10\154\0\122\185\63\44\171\10\239\84\86\165","\77\197\42\188\32\57\213\90");getgenv().AutoClearEnabled=false;getgenv().AC_StartX=0;getgenv().AC_EndX=100;getgenv().AC_StartY=37;getgenv().AC_EndY=6;getgenv().AC_MaxHits=40;getgenv().AC_HoverHeight=6;getgenv().AC_HitDelay=30;getgenv().GridSize=4.5;getgenv().GlideSpeed=2.5;getgenv().AC_ResumeX=nil;getgenv().AC_ResumeY=nil;getgenv().AC_ArahKanan=nil;getgenv().AC_FixedZ=nil;getgenv().AC_Blacklist=getgenv().AC_Blacklist or {} ;local Players=game:GetService(LUAOBFUSACTOR_DECRYPT_STR_0("\48\65\90\55\177\230\19","\148\96\45\59\78\212"));local LP=Players.LocalPlayer;local RS=game:GetService(LUAOBFUSACTOR_DECRYPT_STR_0("\194\21\70\190\249\19\87\166\245\20\101\166\255\2\87\181\245","\210\144\112\54"));local UIS=game:GetService(LUAOBFUSACTOR_DECRYPT_STR_0("\179\61\168\13\114\189\56\158\146\29\168\13\77\186\43\142","\235\230\78\205\127\59\211\72"));local VirtualUser=game:GetService(LUAOBFUSACTOR_DECRYPT_STR_0("\230\64\63\90\146\253\220\124\62\75\149","\156\176\41\77\46\231"));LP.Idled:Connect(function() local FlatIdent_12703=0;while true do if (FlatIdent_12703==0) then VirtualUser:CaptureController();VirtualUser:ClickButton2(Vector2.new());break;end end end);local PlayerMovement;pcall(function() PlayerMovement=require(LP.PlayerScripts:WaitForChild(LUAOBFUSACTOR_DECRYPT_STR_0("\112\182\85\175\180\84\109\181\66\179\188\67\78\174","\38\32\218\52\214\209")));end);local Remotes=RS:WaitForChild(LUAOBFUSACTOR_DECRYPT_STR_0("\37\52\165\65\3\52\187","\46\119\81\200"));local RemoteBreak=Remotes:WaitForChild(LUAOBFUSACTOR_DECRYPT_STR_0("\117\192\55\50\137\162\99\197\37\63","\208\37\172\86\75\236"));local Theme={[LUAOBFUSACTOR_DECRYPT_STR_0("\128\169\234\134","\204\201\221\143\235")]=Color3.fromRGB(45,45,45),[LUAOBFUSACTOR_DECRYPT_STR_0("\67\128\230\85","\33\23\229\158")]=Color3.fromRGB(255,255,255),[LUAOBFUSACTOR_DECRYPT_STR_0("\96\175\211\171\92\191","\219\48\218\161")]=Color3.fromRGB(140,80,255)};local function CreateToggle(Parent,Text,Var) local FlatIdent_12703=0;local FlatIdent_2BD95;local Btn;local C;local T;local IndBg;local IC;local Dot;local DC;while true do if (FlatIdent_12703==1) then C=nil;T=nil;FlatIdent_12703=2;end if (FlatIdent_12703==2) then IndBg=nil;IC=nil;FlatIdent_12703=3;end if (FlatIdent_12703==0) then FlatIdent_2BD95=0;Btn=nil;FlatIdent_12703=1;end if (FlatIdent_12703==4) then while true do if (FlatIdent_2BD95==1) then local FlatIdent_21297=0;while true do if (FlatIdent_21297==1) then C.CornerRadius=UDim.new(0,6);T=Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\208\116\100\93\247\78\226\225\125","\128\132\17\28\41\187\47"),Btn);FlatIdent_21297=2;end if (FlatIdent_21297==2) then FlatIdent_2BD95=2;break;end if (FlatIdent_21297==0) then Btn.AutoButtonColor=false;C=Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\52\27\37\53\79\15\55\20","\61\97\82\102\90"),Btn);FlatIdent_21297=1;end end end if (FlatIdent_2BD95==3) then local FlatIdent_7DD24=0;while true do if (FlatIdent_7DD24==1) then T.BackgroundTransparency=1;T.TextXAlignment=Enum.TextXAlignment.Left;FlatIdent_7DD24=2;end if (FlatIdent_7DD24==2) then FlatIdent_2BD95=4;break;end if (FlatIdent_7DD24==0) then T.Size=UDim2.new(1, -40,1,0);T.Position=UDim2.new(0,10,0,0);FlatIdent_7DD24=1;end end end if (FlatIdent_2BD95==6) then Dot.Position=UDim2.new(0,2,0.5, -7);Dot.BackgroundColor3=Color3.fromRGB(100,100,100);DC=Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\153\7\136\68\213\89\27\27","\105\204\78\203\43\167\55\126"),Dot);DC.CornerRadius=UDim.new(1,0);FlatIdent_2BD95=7;end if (FlatIdent_2BD95==7) then Btn.MouseButton1Click:Connect(function() local FlatIdent_104D4=0;local FlatIdent_1BCFB;while true do if (FlatIdent_104D4==0) then FlatIdent_1BCFB=0;while true do if (FlatIdent_1BCFB==0) then getgenv()[Var]= not getgenv()[Var];if getgenv()[Var] then local FlatIdent_53124=0;while true do if (FlatIdent_53124==0) then Dot:TweenPosition(UDim2.new(1, -16,0.5, -7),LUAOBFUSACTOR_DECRYPT_STR_0("\138\191\55","\49\197\202\67\126\115\100\167"),LUAOBFUSACTOR_DECRYPT_STR_0("\6\78\222\45","\62\87\59\191\73\224\54"),0.2,true);Dot.BackgroundColor3=Color3.new(1,1,1);FlatIdent_53124=1;end if (FlatIdent_53124==1) then IndBg.BackgroundColor3=Theme.Purple;break;end end else local FlatIdent_7FAC9=0;while true do if (FlatIdent_7FAC9==1) then IndBg.BackgroundColor3=Color3.fromRGB(30,30,30);break;end if (0==FlatIdent_7FAC9) then local FlatIdent_A9A3=0;while true do if (FlatIdent_A9A3==0) then Dot:TweenPosition(UDim2.new(0,2,0.5, -7),LUAOBFUSACTOR_DECRYPT_STR_0("\200\23\238","\169\135\98\154"),LUAOBFUSACTOR_DECRYPT_STR_0("\250\98\37\80","\168\171\23\68\52\157\83"),0.2,true);Dot.BackgroundColor3=Color3.fromRGB(100,100,100);FlatIdent_A9A3=1;end if (1==FlatIdent_A9A3) then FlatIdent_7FAC9=1;break;end end end end end break;end end break;end end end);break;end if (FlatIdent_2BD95==5) then local FlatIdent_2FD19=0;while true do if (FlatIdent_2FD19==0) then IC=Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\193\88\214\162\55\35\130\230","\231\148\17\149\205\69\77"),IndBg);IC.CornerRadius=UDim.new(1,0);FlatIdent_2FD19=1;end if (FlatIdent_2FD19==1) then Dot=Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\166\181\198\246\82","\159\224\199\167\155\55"),IndBg);Dot.Size=UDim2.new(0,14,0,14);FlatIdent_2FD19=2;end if (FlatIdent_2FD19==2) then FlatIdent_2BD95=6;break;end end end if (FlatIdent_2BD95==0) then local FlatIdent_5962D=0;while true do if (FlatIdent_5962D==1) then Btn.Size=UDim2.new(1, -10,0,35);Btn.Text="";FlatIdent_5962D=2;end if (FlatIdent_5962D==2) then FlatIdent_2BD95=1;break;end if (0==FlatIdent_5962D) then Btn=Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\195\246\36\198\213\230\40\198\248\253","\178\151\147\92"),Parent);Btn.BackgroundColor3=Theme.Item;FlatIdent_5962D=1;end end end if (FlatIdent_2BD95==4) then local FlatIdent_44100=0;while true do if (FlatIdent_44100==1) then IndBg.Position=UDim2.new(1, -45,0.5, -9);IndBg.BackgroundColor3=Color3.fromRGB(30,30,30);FlatIdent_44100=2;end if (FlatIdent_44100==0) then IndBg=Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\170\239\77\63\23","\26\236\157\44\82\114\44"),Btn);IndBg.Size=UDim2.new(0,36,0,18);FlatIdent_44100=1;end if (FlatIdent_44100==2) then FlatIdent_2BD95=5;break;end end end if (FlatIdent_2BD95==2) then T.Text=Text;T.TextColor3=Theme.Text;T.Font=Enum.Font.GothamSemibold;T.TextSize=12;FlatIdent_2BD95=3;end end break;end if (FlatIdent_12703==3) then Dot=nil;DC=nil;FlatIdent_12703=4;end end end local function CreateSlider(Parent,Text,Min,Max,Default,Var) local Frame=Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\12\60\212\86\47","\59\74\78\181"),Parent);Frame.BackgroundColor3=Theme.Item;Frame.Size=UDim2.new(1, -10,0,45);local C=Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\16\248\121\85\161\43\212\72","\211\69\177\58\58"),Frame);C.CornerRadius=UDim.new(0,6);local Label=Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\131\224\97\225\197\202\181\224\117","\171\215\133\25\149\137"),Frame);Label.Text=Text   .. LUAOBFUSACTOR_DECRYPT_STR_0("\187\136","\34\129\168\82\154\143\80\156")   .. Default ;Label.TextColor3=Theme.Text;Label.BackgroundTransparency=1;Label.Size=UDim2.new(1,0,0,20);Label.Position=UDim2.new(0,10,0,2);Label.Font=Enum.Font.GothamSemibold;Label.TextSize=12;Label.TextXAlignment=Enum.TextXAlignment.Left;local SliderBg=Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\177\183\43\31\106\91\157\145\189\61","\233\229\210\83\107\40\46"),Frame);SliderBg.BackgroundColor3=Color3.fromRGB(30,30,30);SliderBg.Position=UDim2.new(0,10,0,28);SliderBg.Size=UDim2.new(1, -20,0,6);SliderBg.Text="";SliderBg.AutoButtonColor=false;local SC=Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\244\107\17\217\23\207\71\32","\101\161\34\82\182"),SliderBg);SC.CornerRadius=UDim.new(1,0);local Fill=Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\206\31\88\243\222","\78\136\109\57\158\187\130\226"),SliderBg);Fill.BackgroundColor3=Theme.Purple;Fill.Size=UDim2.new((Default-Min)/(Max-Min) ,0,1,0);local FC=Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\11\22\218\254\44\49\252\227","\145\94\95\153"),Fill);FC.CornerRadius=UDim.new(1,0);local Dragging=false;local function Update(input) local FlatIdent_5BA5E=0;local FlatIdent_1B1BA;local SizeX;local Val;while true do if (FlatIdent_5BA5E==1) then Val=nil;while true do if (FlatIdent_1B1BA==0) then SizeX=math.clamp((input.Position.X-SliderBg.AbsolutePosition.X)/SliderBg.AbsoluteSize.X ,0,1);Val=math.floor(Min + ((Max-Min) * SizeX) );FlatIdent_1B1BA=1;end if (FlatIdent_1B1BA==1) then local FlatIdent_295EB=0;while true do if (FlatIdent_295EB==1) then FlatIdent_1B1BA=2;break;end if (FlatIdent_295EB==0) then Fill.Size=UDim2.new(SizeX,0,1,0);Label.Text=Text   .. LUAOBFUSACTOR_DECRYPT_STR_0("\167\141","\215\157\173\116\181\46")   .. Val ;FlatIdent_295EB=1;end end end if (FlatIdent_1B1BA==2) then getgenv()[Var]=Val;if (string.find(Var,LUAOBFUSACTOR_DECRYPT_STR_0("\20\151\180\193\206\52\166\159","\186\85\212\235\146")) or string.find(Var,LUAOBFUSACTOR_DECRYPT_STR_0("\227\162\41\219\55\234","\56\162\225\118\158\89\142"))) then local FlatIdent_817B0=0;while true do if (FlatIdent_817B0==0) then getgenv().AC_ResumeX=nil;getgenv().AC_ResumeY=nil;FlatIdent_817B0=1;end if (FlatIdent_817B0==1) then getgenv().AC_FixedZ=nil;break;end end end break;end end break;end if (FlatIdent_5BA5E==0) then FlatIdent_1B1BA=0;SizeX=nil;FlatIdent_5BA5E=1;end end end SliderBg.InputBegan:Connect(function(i) if ((i.UserInputType==Enum.UserInputType.MouseButton1) or (i.UserInputType==Enum.UserInputType.Touch)) then local FlatIdent_30F75=0;local FlatIdent_3EEE1;while true do if (0==FlatIdent_30F75) then FlatIdent_3EEE1=0;while true do if (FlatIdent_3EEE1==0) then Dragging=true;Update(i);break;end end break;end end end end);UIS.InputEnded:Connect(function(i) if ((i.UserInputType==Enum.UserInputType.MouseButton1) or (i.UserInputType==Enum.UserInputType.Touch)) then Dragging=false;end end);UIS.InputChanged:Connect(function(i) if (Dragging and ((i.UserInputType==Enum.UserInputType.MouseMovement) or (i.UserInputType==Enum.UserInputType.Touch))) then Update(i);end end);end CreateToggle(TargetPage,LUAOBFUSACTOR_DECRYPT_STR_0("\111\17\193\189\54\152\125\16\212\160\98\251\80\0\193\189\98\239\83\23\204\171","\184\60\101\160\207\66"),LUAOBFUSACTOR_DECRYPT_STR_0("\16\151\104\179\18\142\121\189\35\167\114\189\51\142\121\184","\220\81\226\28"));CreateSlider(TargetPage,LUAOBFUSACTOR_DECRYPT_STR_0("\32\193\131\233\254\135\43","\167\115\181\226\155\138"),0,500,0,LUAOBFUSACTOR_DECRYPT_STR_0("\195\1\216\111\111\112\212\246\26","\166\130\66\135\60\27\17"));CreateSlider(TargetPage,LUAOBFUSACTOR_DECRYPT_STR_0("\97\68\202\53\8","\80\36\42\174\21"),0,500,100,LUAOBFUSACTOR_DECRYPT_STR_0("\111\51\8\95\64\20\15","\26\46\112\87"));CreateSlider(TargetPage,LUAOBFUSACTOR_DECRYPT_STR_0("\138\55\170\102\171\255\124","\212\217\67\203\20\223\223\37"),0,150,37,LUAOBFUSACTOR_DECRYPT_STR_0("\155\174\151\225\174\140\186\198\131","\178\218\237\200"));CreateSlider(TargetPage,LUAOBFUSACTOR_DECRYPT_STR_0("\147\187\226\144\143","\176\214\213\134"),0,150,6,LUAOBFUSACTOR_DECRYPT_STR_0("\213\142\137\241\166\82\96","\57\148\205\214\180\200\54"));CreateSlider(TargetPage,LUAOBFUSACTOR_DECRYPT_STR_0("\63\252\45\116\94\27\233\38","\22\114\157\85\84"),10,200,40,LUAOBFUSACTOR_DECRYPT_STR_0("\229\232\44\233\92\238\128\205\223\0","\200\164\171\115\164\61\150"));CreateSlider(TargetPage,LUAOBFUSACTOR_DECRYPT_STR_0("\150\251\21\64\145\254\220\6\76\132\182\224","\227\222\148\99\37"),2,10,6,LUAOBFUSACTOR_DECRYPT_STR_0("\18\113\109\222\246\37\87\64\222\252\58\85\90\226","\153\83\50\50\150"));CreateSlider(TargetPage,LUAOBFUSACTOR_DECRYPT_STR_0("\117\127\103\92\87\174\65\92\111\51\17\96","\45\61\22\19\124\19\203"),0,100,30,LUAOBFUSACTOR_DECRYPT_STR_0("\224\49\50\221\11\100\157\196\30\12\236","\217\161\114\109\149\98\16"));local function ToggleCXFly(state) local FlatIdent_8BA1E=0;local FlatIdent_39764;local Char;local HRP;local Hum;local Hitbox;local parts;while true do if (FlatIdent_8BA1E==0) then FlatIdent_39764=0;Char=nil;FlatIdent_8BA1E=1;end if (FlatIdent_8BA1E==2) then Hitbox=nil;parts=nil;FlatIdent_8BA1E=3;end if (FlatIdent_8BA1E==1) then HRP=nil;Hum=nil;FlatIdent_8BA1E=2;end if (3==FlatIdent_8BA1E) then while true do if (FlatIdent_39764==1) then Hum=Char and Char:FindFirstChildOfClass(LUAOBFUSACTOR_DECRYPT_STR_0("\58\53\53\125\178\123\27\36","\20\114\64\88\28\220")) ;Hitbox=workspace:FindFirstChild(LUAOBFUSACTOR_DECRYPT_STR_0("\25\8\198\182\247\200","\221\81\97\178\212\152\176")) and workspace.Hitbox:FindFirstChild(LP.Name) ;FlatIdent_39764=2;end if (FlatIdent_39764==0) then local FlatIdent_287B5=0;while true do if (FlatIdent_287B5==0) then Char=LP.Character;HRP=Char and Char:FindFirstChild(LUAOBFUSACTOR_DECRYPT_STR_0("\229\242\16\250\20\194\238\25\201\21\194\243\45\250\8\217","\122\173\135\125\155")) ;FlatIdent_287B5=1;end if (FlatIdent_287B5==1) then FlatIdent_39764=1;break;end end end if (FlatIdent_39764==3) then for _,part in ipairs(parts) do if part then part.Anchored=false;part.RotVelocity=Vector3.zero;part.AssemblyAngularVelocity=Vector3.zero;if state then part.CanCollide=false;local bv=part:FindFirstChild(LUAOBFUSACTOR_DECRYPT_STR_0("\190\238\46\134\25\61\209\166\247","\168\228\161\96\217\95\81")) or Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\249\222\42\69\25\82\215\222\45\85\59\78","\55\187\177\78\60\79")) ;bv.Name=LUAOBFUSACTOR_DECRYPT_STR_0("\23\225\113\212\96\195\153\15\248","\224\77\174\63\139\38\175");bv.MaxForce=Vector3.new(1000000000,1000000000,1000000000);bv.Velocity=Vector3.zero;bv.Parent=part;else part.CanCollide=true;if part:FindFirstChild(LUAOBFUSACTOR_DECRYPT_STR_0("\190\110\118\17\162\77\65\12\178","\78\228\33\56")) then part.ZON_FlyBV:Destroy();end part.CFrame=CFrame.new(part.Position);end end end break;end if (FlatIdent_39764==2) then local FlatIdent_C595=0;while true do if (FlatIdent_C595==1) then FlatIdent_39764=3;break;end if (FlatIdent_C595==0) then if Hum then Hum.PlatformStand=state;end parts={HRP,Hitbox};FlatIdent_C595=1;end end end end break;end end end local function IsUnbreakable(gridX,gridY) local FlatIdent_D79D=0;local FlatIdent_287B5;local absoluteZ;local checkPos;local params;local parts;while true do if (FlatIdent_D79D==1) then checkPos=nil;params=nil;FlatIdent_D79D=2;end if (FlatIdent_D79D==2) then parts=nil;while true do local FlatIdent_5AB84=0;while true do if (FlatIdent_5AB84==1) then if (FlatIdent_287B5==1) then params=OverlapParams.new();params.FilterDescendantsInstances={LP.Character,workspace.CurrentCamera};FlatIdent_287B5=2;end if (FlatIdent_287B5==3) then for _,part in ipairs(parts) do if part:IsA(LUAOBFUSACTOR_DECRYPT_STR_0("\236\127\161\6\181\207\108\166","\229\174\30\210\99")) then local FlatIdent_2E9CB=0;local pName;local pParent;while true do if (FlatIdent_2E9CB==1) then if (string.find(pName,LUAOBFUSACTOR_DECRYPT_STR_0("\25\232\130\67\226\62\50","\89\123\141\230\49\141\93")) or string.find(pParent,LUAOBFUSACTOR_DECRYPT_STR_0("\241\116\242\30\31\73\248","\42\147\17\150\108\112")) or string.find(pName,LUAOBFUSACTOR_DECRYPT_STR_0("\11\169\34\109","\136\111\198\77\31\135")) or string.find(pParent,LUAOBFUSACTOR_DECRYPT_STR_0("\6\6\168\68","\201\98\105\199\54\221\132\119")) or string.find(pName,LUAOBFUSACTOR_DECRYPT_STR_0("\180\13\138\47","\204\217\108\227\65\98\85"))) then return true;end break;end if (FlatIdent_2E9CB==0) then pName=string.lower(part.Name);pParent=(part.Parent and string.lower(part.Parent.Name)) or "" ;FlatIdent_2E9CB=1;end end end end return false;end break;end if (FlatIdent_5AB84==0) then if (FlatIdent_287B5==2) then local FlatIdent_5B4A8=0;while true do if (FlatIdent_5B4A8==1) then FlatIdent_287B5=3;break;end if (FlatIdent_5B4A8==0) then params.FilterType=Enum.RaycastFilterType.Exclude;parts=workspace:GetPartBoundsInBox(CFrame.new(checkPos),Vector3.new(3,3,50),params);FlatIdent_5B4A8=1;end end end if (FlatIdent_287B5==0) then local FlatIdent_49280=0;while true do if (FlatIdent_49280==0) then absoluteZ=getgenv().AC_FixedZ or 0 ;checkPos=Vector3.new(gridX * getgenv().GridSize ,gridY * getgenv().GridSize ,absoluteZ);FlatIdent_49280=1;end if (FlatIdent_49280==1) then FlatIdent_287B5=1;break;end end end FlatIdent_5AB84=1;end end end break;end if (0==FlatIdent_D79D) then FlatIdent_287B5=0;absoluteZ=nil;FlatIdent_D79D=1;end end end local function NeedsBreaking(gridX,gridY) local FlatIdent_20FB0=0;local absoluteZ;local checkPos;local params;local parts;while true do local FlatIdent_43BF7=0;while true do if (0==FlatIdent_43BF7) then if (FlatIdent_20FB0==4) then return false;end if (FlatIdent_20FB0==1) then checkPos=Vector3.new(gridX * getgenv().GridSize ,gridY * getgenv().GridSize ,absoluteZ);params=OverlapParams.new();FlatIdent_20FB0=2;end FlatIdent_43BF7=1;end if (FlatIdent_43BF7==1) then if (0==FlatIdent_20FB0) then local FlatIdent_506A5=0;while true do if (FlatIdent_506A5==0) then if getgenv().AC_Blacklist[gridX   .. ","   .. gridY ] then return false;end absoluteZ=getgenv().AC_FixedZ or 0 ;FlatIdent_506A5=1;end if (FlatIdent_506A5==1) then FlatIdent_20FB0=1;break;end end end if (FlatIdent_20FB0==3) then parts=workspace:GetPartBoundsInBox(CFrame.new(checkPos),Vector3.new(3,3,50),params);for _,part in ipairs(parts) do if part:IsA(LUAOBFUSACTOR_DECRYPT_STR_0("\124\194\230\224\28\193\76\215","\160\62\163\149\133\76")) then local FlatIdent_8BC55=0;local pName;local pParent;while true do repeat if (FlatIdent_8BC55==1) then if (string.find(pName,LUAOBFUSACTOR_DECRYPT_STR_0("\210\175\2\61","\163\182\192\109\79")) or string.find(pParent,LUAOBFUSACTOR_DECRYPT_STR_0("\48\41\15\210","\149\84\70\96\160")) or string.find(pName,LUAOBFUSACTOR_DECRYPT_STR_0("\43\22\12\250\54","\141\88\102\109"))) then do break;end end return true;end if (FlatIdent_8BC55==0) then pName=string.lower(part.Name);pParent=(part.Parent and string.lower(part.Parent.Name)) or "" ;FlatIdent_8BC55=1;end until true end end end FlatIdent_20FB0=4;end FlatIdent_43BF7=2;end if (FlatIdent_43BF7==2) then if (FlatIdent_20FB0==2) then local FlatIdent_37555=0;while true do if (FlatIdent_37555==1) then FlatIdent_20FB0=3;break;end if (FlatIdent_37555==0) then params.FilterDescendantsInstances={LP.Character,workspace.CurrentCamera};params.FilterType=Enum.RaycastFilterType.Exclude;FlatIdent_37555=1;end end end break;end end end end local function ServerSyncedGlide(targetPos) local FlatIdent_2DB3E=0;local FlatIdent_98388;local Hitbox;local HRP;while true do if (FlatIdent_2DB3E==1) then HRP=nil;while true do if (FlatIdent_98388==1) then if ( not Hitbox or  not HRP) then return;end while getgenv().AutoClearEnabled do local currentPos=Hitbox.Position;local distance=(targetPos-currentPos).Magnitude;if (distance<=getgenv().GlideSpeed) then Hitbox.CFrame=CFrame.new(targetPos);HRP.CFrame=CFrame.new(targetPos);if PlayerMovement then pcall(function() PlayerMovement.Position=targetPos;end);end break;else local FlatIdent_8BC55=0;local nextPos;while true do if (FlatIdent_8BC55==1) then HRP.CFrame=CFrame.new(nextPos);if PlayerMovement then pcall(function() PlayerMovement.Position=nextPos;end);end break;end if (FlatIdent_8BC55==0) then nextPos=currentPos + ((targetPos-currentPos).Unit * getgenv().GlideSpeed) ;Hitbox.CFrame=CFrame.new(nextPos);FlatIdent_8BC55=1;end end end task.wait();end break;end if (FlatIdent_98388==0) then local FlatIdent_270C=0;while true do if (FlatIdent_270C==0) then Hitbox=workspace:FindFirstChild(LUAOBFUSACTOR_DECRYPT_STR_0("\155\90\222\114\21\37","\161\211\51\170\16\122\93\53")) and workspace.Hitbox:FindFirstChild(LP.Name) ;HRP=LP.Character and LP.Character:FindFirstChild(LUAOBFUSACTOR_DECRYPT_STR_0("\211\187\191\41\245\161\187\44\201\161\189\60\203\175\160\60","\72\155\206\210")) ;FlatIdent_270C=1;end if (FlatIdent_270C==1) then FlatIdent_98388=1;break;end end end end break;end if (FlatIdent_2DB3E==0) then FlatIdent_98388=0;Hitbox=nil;FlatIdent_2DB3E=1;end end end local isRunning=false;task.spawn(function() while task.wait(0.2) do if (getgenv().AutoClearEnabled and  not isRunning) then isRunning=true;local initialHitbox=workspace:FindFirstChild(LUAOBFUSACTOR_DECRYPT_STR_0("\110\115\64\12\60\94","\83\38\26\52\110")) and workspace.Hitbox:FindFirstChild(LP.Name) ;if (getgenv().AC_ResumeX==nil) then local FlatIdent_6D9D2=0;while true do if (FlatIdent_6D9D2==0) then getgenv().AC_ResumeY=getgenv().AC_StartY;getgenv().AC_ArahKanan=true;FlatIdent_6D9D2=1;end if (FlatIdent_6D9D2==1) then getgenv().AC_ResumeX=getgenv().AC_StartX;if initialHitbox then getgenv().AC_FixedZ=initialHitbox.Position.Z;end break;end end end local absoluteZ=getgenv().AC_FixedZ or 0 ;ToggleCXFly(true);while getgenv().AutoClearEnabled and (getgenv().AC_ResumeY>=getgenv().AC_EndY)  do local blockTargetY=getgenv().AC_ResumeY-1 ;local stepX=(getgenv().AC_ArahKanan and 1) or  -1 ;local isLayerSatu=getgenv().AC_ResumeY>=37 ;while getgenv().AutoClearEnabled do local currentX=getgenv().AC_ResumeX;if ((getgenv().AC_ArahKanan and (currentX>getgenv().AC_EndX)) or ( not getgenv().AC_ArahKanan and (currentX<getgenv().AC_StartX))) then break;end if IsUnbreakable(currentX,blockTargetY) then getgenv().AC_Blacklist[currentX   .. ","   .. blockTargetY ]=true;elseif NeedsBreaking(currentX,blockTargetY) then local FlatIdent_22216=0;local Hitbox;local HRP;local finalPos;local failsafe;while true do if (FlatIdent_22216==0) then local FlatIdent_322B4=0;while true do if (FlatIdent_322B4==1) then finalPos=nil;if isLayerSatu then finalPos=Vector3.new(currentX * getgenv().GridSize ,((blockTargetY + 1) * getgenv().GridSize) + getgenv().AC_HoverHeight ,absoluteZ);else finalPos=Vector3.new((currentX-stepX) * getgenv().GridSize ,blockTargetY * getgenv().GridSize ,absoluteZ);end FlatIdent_322B4=2;end if (FlatIdent_322B4==2) then FlatIdent_22216=1;break;end if (FlatIdent_322B4==0) then Hitbox=workspace:FindFirstChild(LUAOBFUSACTOR_DECRYPT_STR_0("\112\30\51\68\87\15","\38\56\119\71")) and workspace.Hitbox:FindFirstChild(LP.Name) ;HRP=LP.Character and LP.Character:FindFirstChild(LUAOBFUSACTOR_DECRYPT_STR_0("\219\250\85\215\43\89\250\235\106\217\42\66\195\238\74\194","\54\147\143\56\182\69")) ;FlatIdent_322B4=1;end end end if (FlatIdent_22216==1) then local FlatIdent_499B1=0;while true do if (FlatIdent_499B1==1) then if HRP then HRP.Anchored=true;end failsafe=0;FlatIdent_499B1=2;end if (2==FlatIdent_499B1) then FlatIdent_22216=2;break;end if (FlatIdent_499B1==0) then ServerSyncedGlide(finalPos);if Hitbox then Hitbox.Anchored=true;end FlatIdent_499B1=1;end end end if (FlatIdent_22216==2) then while NeedsBreaking(currentX,blockTargetY) and getgenv().AutoClearEnabled  do if Hitbox then Hitbox.CFrame=CFrame.new(finalPos);end if HRP then HRP.CFrame=CFrame.new(finalPos);end if PlayerMovement then pcall(function() PlayerMovement.Position=finalPos;end);end if IsUnbreakable(currentX,blockTargetY) then break;end RemoteBreak:FireServer(Vector2.new(currentX,blockTargetY));failsafe=failsafe + 1 ;if (failsafe>getgenv().AC_MaxHits) then getgenv().AC_Blacklist[currentX   .. ","   .. blockTargetY ]=true;break;end task.wait(getgenv().AC_HitDelay/1000 );end if Hitbox then Hitbox.Anchored=false;end if HRP then HRP.Anchored=false;end break;end end end getgenv().AC_ResumeX=getgenv().AC_ResumeX + stepX ;end if getgenv().AutoClearEnabled then local FlatIdent_25A9F=0;local FlatIdent_21DDC;while true do if (FlatIdent_25A9F==0) then FlatIdent_21DDC=0;while true do if (FlatIdent_21DDC==1) then getgenv().AC_ResumeX=(getgenv().AC_ArahKanan and getgenv().AC_StartX) or getgenv().AC_EndX ;break;end if (FlatIdent_21DDC==0) then local FlatIdent_72421=0;while true do if (FlatIdent_72421==1) then FlatIdent_21DDC=1;break;end if (FlatIdent_72421==0) then getgenv().AC_ResumeY=getgenv().AC_ResumeY-1 ;getgenv().AC_ArahKanan= not getgenv().AC_ArahKanan;FlatIdent_72421=1;end end end end break;end end end end isRunning=false;ToggleCXFly(false);end end end);else local sdawdwqdq=obf_arg[1];end end if (obf_tonumber(obf_stringmatch(obf_stringmatch(({obf_pcall(obf_wrapperfunc,nil)})[2],":%d+:"),"%d+"))==1) then return obf_wrapperfunc({});else return obf_adjnqwidqwjhdpoq();end end return obf_adjnqwidqwjhdpoq();
--- ⚠️ WARNING: integrity protected!
 --[[
  .____                  ________ ___.    _____                           __                
  |    |    __ _______   \_____  \\_ |___/ ____\_ __  ______ ____ _____ _/  |_  ___________ 
@@ -10,3 +8,922 @@ local obf_stringchar=string.char;local obf_stringbyte=string.byte;local obf_stri
           \_Welcome to LuaObfuscator.com   (Alpha 0.10.9) ~  Much Love, Ferib 
 
 ]]--
+
+local obf_stringchar = string.char;
+local obf_stringbyte = string.byte;
+local obf_stringsub = string.sub;
+local obf_bitlib = bit32 or bit;
+local obf_XOR = obf_bitlib.bxor;
+local obf_tableconcat = table.concat;
+local obf_tableinsert = table.insert;
+local function LUAOBFUSACTOR_DECRYPT_STR_0(LUAOBFUSACTOR_STR, LUAOBFUSACTOR_KEY)
+	local result = {};
+	for i = 1, #LUAOBFUSACTOR_STR do
+		obf_tableinsert(result, obf_stringchar(obf_XOR(obf_stringbyte(obf_stringsub(LUAOBFUSACTOR_STR, i, i + 1)), obf_stringbyte(obf_stringsub(LUAOBFUSACTOR_KEY, 1 + (i % #LUAOBFUSACTOR_KEY), 1 + (i % #LUAOBFUSACTOR_KEY) + 1))) % 256));
+	end
+	return obf_tableconcat(result);
+end
+local obf_stringmatch = string.match;
+local obf_tonumber = tonumber;
+local obf_pcall = pcall;
+local function obf_adjnqwidqwjhdpoq()
+	local function obf_wrapperfunc(obf_arg)
+		if obf_arg then
+			local TargetPage = ...;
+			if not TargetPage then
+				local FlatIdent_7126A = 0;
+				local FlatIdent_7126A;
+				while true do
+					if (FlatIdent_7126A == 0) then
+						FlatIdent_7126A = 0;
+						while true do
+							if (FlatIdent_7126A == 0) then
+								local FlatIdent_2A9F7 = 0;
+								while true do
+									if (FlatIdent_2A9F7 == 0) then
+										warn(LUAOBFUSACTOR_DECRYPT_STR_0("\3\216\21\146\34\210\81\143\47\197\4\148\110\211\24\202\34\216\16\131\110\211\16\149\39\151\43\136\32\254\31\131\43\207\80", "\231\78\183\113"));
+										return;
+									end
+								end
+							end
+						end
+						break;
+					end
+				end
+			end
+			getgenv().ScriptVersion = LUAOBFUSACTOR_DECRYPT_STR_0("\132\95\200\79\122\185\63\44\183\10\202\22\12\245\119\109\159\79\206\79\20\134\42\36\171\10\154\0\122\185\63\44\171\10\239\84\86\165", "\77\197\42\188\32\57\213\90");
+			getgenv().AutoClearEnabled = false;
+			getgenv().AC_StartX = 0;
+			getgenv().AC_EndX = 100;
+			getgenv().AC_StartY = 37;
+			getgenv().AC_EndY = 6;
+			getgenv().AC_MaxHits = 40;
+			getgenv().AC_HoverHeight = 6;
+			getgenv().AC_HitDelay = 30;
+			getgenv().GridSize = 4.5;
+			getgenv().GlideSpeed = 2.5;
+			getgenv().AC_ResumeX = nil;
+			getgenv().AC_ResumeY = nil;
+			getgenv().AC_ArahKanan = nil;
+			getgenv().AC_FixedZ = nil;
+			getgenv().AC_Blacklist = getgenv().AC_Blacklist or {};
+			local Players = game:GetService(LUAOBFUSACTOR_DECRYPT_STR_0("\48\65\90\55\177\230\19", "\148\96\45\59\78\212"));
+			local LP = Players.LocalPlayer;
+			local RS = game:GetService(LUAOBFUSACTOR_DECRYPT_STR_0("\194\21\70\190\249\19\87\166\245\20\101\166\255\2\87\181\245", "\210\144\112\54"));
+			local UIS = game:GetService(LUAOBFUSACTOR_DECRYPT_STR_0("\179\61\168\13\114\189\56\158\146\29\168\13\77\186\43\142", "\235\230\78\205\127\59\211\72"));
+			local VirtualUser = game:GetService(LUAOBFUSACTOR_DECRYPT_STR_0("\230\64\63\90\146\253\220\124\62\75\149", "\156\176\41\77\46\231"));
+			LP.Idled:Connect(function()
+				local FlatIdent_12703 = 0;
+				while true do
+					if (FlatIdent_12703 == 0) then
+						VirtualUser:CaptureController();
+						VirtualUser:ClickButton2(Vector2.new());
+						break;
+					end
+				end
+			end);
+			local PlayerMovement;
+			pcall(function()
+				PlayerMovement = require(LP.PlayerScripts:WaitForChild(LUAOBFUSACTOR_DECRYPT_STR_0("\112\182\85\175\180\84\109\181\66\179\188\67\78\174", "\38\32\218\52\214\209")));
+			end);
+			local Remotes = RS:WaitForChild(LUAOBFUSACTOR_DECRYPT_STR_0("\37\52\165\65\3\52\187", "\46\119\81\200"));
+			local RemoteBreak = Remotes:WaitForChild(LUAOBFUSACTOR_DECRYPT_STR_0("\117\192\55\50\137\162\99\197\37\63", "\208\37\172\86\75\236"));
+			local Theme = {[LUAOBFUSACTOR_DECRYPT_STR_0("\128\169\234\134", "\204\201\221\143\235")]=Color3.fromRGB(45, 45, 45),[LUAOBFUSACTOR_DECRYPT_STR_0("\67\128\230\85", "\33\23\229\158")]=Color3.fromRGB(255, 255, 255),[LUAOBFUSACTOR_DECRYPT_STR_0("\96\175\211\171\92\191", "\219\48\218\161")]=Color3.fromRGB(140, 80, 255)};
+			local function CreateToggle(Parent, Text, Var)
+				local FlatIdent_12703 = 0;
+				local FlatIdent_2BD95;
+				local Btn;
+				local C;
+				local T;
+				local IndBg;
+				local IC;
+				local Dot;
+				local DC;
+				while true do
+					if (FlatIdent_12703 == 1) then
+						C = nil;
+						T = nil;
+						FlatIdent_12703 = 2;
+					end
+					if (FlatIdent_12703 == 2) then
+						IndBg = nil;
+						IC = nil;
+						FlatIdent_12703 = 3;
+					end
+					if (FlatIdent_12703 == 0) then
+						FlatIdent_2BD95 = 0;
+						Btn = nil;
+						FlatIdent_12703 = 1;
+					end
+					if (FlatIdent_12703 == 4) then
+						while true do
+							if (FlatIdent_2BD95 == 1) then
+								local FlatIdent_21297 = 0;
+								while true do
+									if (FlatIdent_21297 == 1) then
+										C.CornerRadius = UDim.new(0, 6);
+										T = Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\208\116\100\93\247\78\226\225\125", "\128\132\17\28\41\187\47"), Btn);
+										FlatIdent_21297 = 2;
+									end
+									if (FlatIdent_21297 == 2) then
+										FlatIdent_2BD95 = 2;
+										break;
+									end
+									if (FlatIdent_21297 == 0) then
+										Btn.AutoButtonColor = false;
+										C = Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\52\27\37\53\79\15\55\20", "\61\97\82\102\90"), Btn);
+										FlatIdent_21297 = 1;
+									end
+								end
+							end
+							if (FlatIdent_2BD95 == 3) then
+								local FlatIdent_7DD24 = 0;
+								while true do
+									if (FlatIdent_7DD24 == 1) then
+										T.BackgroundTransparency = 1;
+										T.TextXAlignment = Enum.TextXAlignment.Left;
+										FlatIdent_7DD24 = 2;
+									end
+									if (FlatIdent_7DD24 == 2) then
+										FlatIdent_2BD95 = 4;
+										break;
+									end
+									if (FlatIdent_7DD24 == 0) then
+										T.Size = UDim2.new(1, -40, 1, 0);
+										T.Position = UDim2.new(0, 10, 0, 0);
+										FlatIdent_7DD24 = 1;
+									end
+								end
+							end
+							if (FlatIdent_2BD95 == 6) then
+								Dot.Position = UDim2.new(0, 2, 0.5, -7);
+								Dot.BackgroundColor3 = Color3.fromRGB(100, 100, 100);
+								DC = Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\153\7\136\68\213\89\27\27", "\105\204\78\203\43\167\55\126"), Dot);
+								DC.CornerRadius = UDim.new(1, 0);
+								FlatIdent_2BD95 = 7;
+							end
+							if (FlatIdent_2BD95 == 7) then
+								Btn.MouseButton1Click:Connect(function()
+									local FlatIdent_104D4 = 0;
+									local FlatIdent_1BCFB;
+									while true do
+										if (FlatIdent_104D4 == 0) then
+											FlatIdent_1BCFB = 0;
+											while true do
+												if (FlatIdent_1BCFB == 0) then
+													getgenv()[Var] = not getgenv()[Var];
+													if getgenv()[Var] then
+														local FlatIdent_53124 = 0;
+														while true do
+															if (FlatIdent_53124 == 0) then
+																Dot:TweenPosition(UDim2.new(1, -16, 0.5, -7), LUAOBFUSACTOR_DECRYPT_STR_0("\138\191\55", "\49\197\202\67\126\115\100\167"), LUAOBFUSACTOR_DECRYPT_STR_0("\6\78\222\45", "\62\87\59\191\73\224\54"), 0.2, true);
+																Dot.BackgroundColor3 = Color3.new(1, 1, 1);
+																FlatIdent_53124 = 1;
+															end
+															if (FlatIdent_53124 == 1) then
+																IndBg.BackgroundColor3 = Theme.Purple;
+																break;
+															end
+														end
+													else
+														local FlatIdent_7FAC9 = 0;
+														while true do
+															if (FlatIdent_7FAC9 == 1) then
+																IndBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30);
+																break;
+															end
+															if (0 == FlatIdent_7FAC9) then
+																local FlatIdent_A9A3 = 0;
+																while true do
+																	if (FlatIdent_A9A3 == 0) then
+																		Dot:TweenPosition(UDim2.new(0, 2, 0.5, -7), LUAOBFUSACTOR_DECRYPT_STR_0("\200\23\238", "\169\135\98\154"), LUAOBFUSACTOR_DECRYPT_STR_0("\250\98\37\80", "\168\171\23\68\52\157\83"), 0.2, true);
+																		Dot.BackgroundColor3 = Color3.fromRGB(100, 100, 100);
+																		FlatIdent_A9A3 = 1;
+																	end
+																	if (1 == FlatIdent_A9A3) then
+																		FlatIdent_7FAC9 = 1;
+																		break;
+																	end
+																end
+															end
+														end
+													end
+													break;
+												end
+											end
+											break;
+										end
+									end
+								end);
+								break;
+							end
+							if (FlatIdent_2BD95 == 5) then
+								local FlatIdent_2FD19 = 0;
+								while true do
+									if (FlatIdent_2FD19 == 0) then
+										IC = Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\193\88\214\162\55\35\130\230", "\231\148\17\149\205\69\77"), IndBg);
+										IC.CornerRadius = UDim.new(1, 0);
+										FlatIdent_2FD19 = 1;
+									end
+									if (FlatIdent_2FD19 == 1) then
+										Dot = Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\166\181\198\246\82", "\159\224\199\167\155\55"), IndBg);
+										Dot.Size = UDim2.new(0, 14, 0, 14);
+										FlatIdent_2FD19 = 2;
+									end
+									if (FlatIdent_2FD19 == 2) then
+										FlatIdent_2BD95 = 6;
+										break;
+									end
+								end
+							end
+							if (FlatIdent_2BD95 == 0) then
+								local FlatIdent_5962D = 0;
+								while true do
+									if (FlatIdent_5962D == 1) then
+										Btn.Size = UDim2.new(1, -10, 0, 35);
+										Btn.Text = "";
+										FlatIdent_5962D = 2;
+									end
+									if (FlatIdent_5962D == 2) then
+										FlatIdent_2BD95 = 1;
+										break;
+									end
+									if (0 == FlatIdent_5962D) then
+										Btn = Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\195\246\36\198\213\230\40\198\248\253", "\178\151\147\92"), Parent);
+										Btn.BackgroundColor3 = Theme.Item;
+										FlatIdent_5962D = 1;
+									end
+								end
+							end
+							if (FlatIdent_2BD95 == 4) then
+								local FlatIdent_44100 = 0;
+								while true do
+									if (FlatIdent_44100 == 1) then
+										IndBg.Position = UDim2.new(1, -45, 0.5, -9);
+										IndBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30);
+										FlatIdent_44100 = 2;
+									end
+									if (FlatIdent_44100 == 0) then
+										IndBg = Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\170\239\77\63\23", "\26\236\157\44\82\114\44"), Btn);
+										IndBg.Size = UDim2.new(0, 36, 0, 18);
+										FlatIdent_44100 = 1;
+									end
+									if (FlatIdent_44100 == 2) then
+										FlatIdent_2BD95 = 5;
+										break;
+									end
+								end
+							end
+							if (FlatIdent_2BD95 == 2) then
+								T.Text = Text;
+								T.TextColor3 = Theme.Text;
+								T.Font = Enum.Font.GothamSemibold;
+								T.TextSize = 12;
+								FlatIdent_2BD95 = 3;
+							end
+						end
+						break;
+					end
+					if (FlatIdent_12703 == 3) then
+						Dot = nil;
+						DC = nil;
+						FlatIdent_12703 = 4;
+					end
+				end
+			end
+			local function CreateSlider(Parent, Text, Min, Max, Default, Var)
+				local Frame = Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\12\60\212\86\47", "\59\74\78\181"), Parent);
+				Frame.BackgroundColor3 = Theme.Item;
+				Frame.Size = UDim2.new(1, -10, 0, 45);
+				local C = Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\16\248\121\85\161\43\212\72", "\211\69\177\58\58"), Frame);
+				C.CornerRadius = UDim.new(0, 6);
+				local Label = Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\131\224\97\225\197\202\181\224\117", "\171\215\133\25\149\137"), Frame);
+				Label.Text = Text .. LUAOBFUSACTOR_DECRYPT_STR_0("\187\136", "\34\129\168\82\154\143\80\156") .. Default;
+				Label.TextColor3 = Theme.Text;
+				Label.BackgroundTransparency = 1;
+				Label.Size = UDim2.new(1, 0, 0, 20);
+				Label.Position = UDim2.new(0, 10, 0, 2);
+				Label.Font = Enum.Font.GothamSemibold;
+				Label.TextSize = 12;
+				Label.TextXAlignment = Enum.TextXAlignment.Left;
+				local SliderBg = Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\177\183\43\31\106\91\157\145\189\61", "\233\229\210\83\107\40\46"), Frame);
+				SliderBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30);
+				SliderBg.Position = UDim2.new(0, 10, 0, 28);
+				SliderBg.Size = UDim2.new(1, -20, 0, 6);
+				SliderBg.Text = "";
+				SliderBg.AutoButtonColor = false;
+				local SC = Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\244\107\17\217\23\207\71\32", "\101\161\34\82\182"), SliderBg);
+				SC.CornerRadius = UDim.new(1, 0);
+				local Fill = Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\206\31\88\243\222", "\78\136\109\57\158\187\130\226"), SliderBg);
+				Fill.BackgroundColor3 = Theme.Purple;
+				Fill.Size = UDim2.new((Default - Min) / (Max - Min), 0, 1, 0);
+				local FC = Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\11\22\218\254\44\49\252\227", "\145\94\95\153"), Fill);
+				FC.CornerRadius = UDim.new(1, 0);
+				local Dragging = false;
+				local function Update(input)
+					local FlatIdent_5BA5E = 0;
+					local FlatIdent_1B1BA;
+					local SizeX;
+					local Val;
+					while true do
+						if (FlatIdent_5BA5E == 1) then
+							Val = nil;
+							while true do
+								if (FlatIdent_1B1BA == 0) then
+									SizeX = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1);
+									Val = math.floor(Min + ((Max - Min) * SizeX));
+									FlatIdent_1B1BA = 1;
+								end
+								if (FlatIdent_1B1BA == 1) then
+									local FlatIdent_295EB = 0;
+									while true do
+										if (FlatIdent_295EB == 1) then
+											FlatIdent_1B1BA = 2;
+											break;
+										end
+										if (FlatIdent_295EB == 0) then
+											Fill.Size = UDim2.new(SizeX, 0, 1, 0);
+											Label.Text = Text .. LUAOBFUSACTOR_DECRYPT_STR_0("\167\141", "\215\157\173\116\181\46") .. Val;
+											FlatIdent_295EB = 1;
+										end
+									end
+								end
+								if (FlatIdent_1B1BA == 2) then
+									getgenv()[Var] = Val;
+									if (string.find(Var, LUAOBFUSACTOR_DECRYPT_STR_0("\20\151\180\193\206\52\166\159", "\186\85\212\235\146")) or string.find(Var, LUAOBFUSACTOR_DECRYPT_STR_0("\227\162\41\219\55\234", "\56\162\225\118\158\89\142"))) then
+										local FlatIdent_817B0 = 0;
+										while true do
+											if (FlatIdent_817B0 == 0) then
+												getgenv().AC_ResumeX = nil;
+												getgenv().AC_ResumeY = nil;
+												FlatIdent_817B0 = 1;
+											end
+											if (FlatIdent_817B0 == 1) then
+												getgenv().AC_FixedZ = nil;
+												break;
+											end
+										end
+									end
+									break;
+								end
+							end
+							break;
+						end
+						if (FlatIdent_5BA5E == 0) then
+							FlatIdent_1B1BA = 0;
+							SizeX = nil;
+							FlatIdent_5BA5E = 1;
+						end
+					end
+				end
+				SliderBg.InputBegan:Connect(function(i)
+					if ((i.UserInputType == Enum.UserInputType.MouseButton1) or (i.UserInputType == Enum.UserInputType.Touch)) then
+						local FlatIdent_30F75 = 0;
+						local FlatIdent_3EEE1;
+						while true do
+							if (0 == FlatIdent_30F75) then
+								FlatIdent_3EEE1 = 0;
+								while true do
+									if (FlatIdent_3EEE1 == 0) then
+										Dragging = true;
+										Update(i);
+										break;
+									end
+								end
+								break;
+							end
+						end
+					end
+				end);
+				UIS.InputEnded:Connect(function(i)
+					if ((i.UserInputType == Enum.UserInputType.MouseButton1) or (i.UserInputType == Enum.UserInputType.Touch)) then
+						Dragging = false;
+					end
+				end);
+				UIS.InputChanged:Connect(function(i)
+					if (Dragging and ((i.UserInputType == Enum.UserInputType.MouseMovement) or (i.UserInputType == Enum.UserInputType.Touch))) then
+						Update(i);
+					end
+				end);
+			end
+			CreateToggle(TargetPage, LUAOBFUSACTOR_DECRYPT_STR_0("\111\17\193\189\54\152\125\16\212\160\98\251\80\0\193\189\98\239\83\23\204\171", "\184\60\101\160\207\66"), LUAOBFUSACTOR_DECRYPT_STR_0("\16\151\104\179\18\142\121\189\35\167\114\189\51\142\121\184", "\220\81\226\28"));
+			CreateSlider(TargetPage, LUAOBFUSACTOR_DECRYPT_STR_0("\32\193\131\233\254\135\43", "\167\115\181\226\155\138"), 0, 500, 0, LUAOBFUSACTOR_DECRYPT_STR_0("\195\1\216\111\111\112\212\246\26", "\166\130\66\135\60\27\17"));
+			CreateSlider(TargetPage, LUAOBFUSACTOR_DECRYPT_STR_0("\97\68\202\53\8", "\80\36\42\174\21"), 0, 500, 100, LUAOBFUSACTOR_DECRYPT_STR_0("\111\51\8\95\64\20\15", "\26\46\112\87"));
+			CreateSlider(TargetPage, LUAOBFUSACTOR_DECRYPT_STR_0("\138\55\170\102\171\255\124", "\212\217\67\203\20\223\223\37"), 0, 150, 37, LUAOBFUSACTOR_DECRYPT_STR_0("\155\174\151\225\174\140\186\198\131", "\178\218\237\200"));
+			CreateSlider(TargetPage, LUAOBFUSACTOR_DECRYPT_STR_0("\147\187\226\144\143", "\176\214\213\134"), 0, 150, 6, LUAOBFUSACTOR_DECRYPT_STR_0("\213\142\137\241\166\82\96", "\57\148\205\214\180\200\54"));
+			CreateSlider(TargetPage, LUAOBFUSACTOR_DECRYPT_STR_0("\63\252\45\116\94\27\233\38", "\22\114\157\85\84"), 10, 200, 40, LUAOBFUSACTOR_DECRYPT_STR_0("\229\232\44\233\92\238\128\205\223\0", "\200\164\171\115\164\61\150"));
+			CreateSlider(TargetPage, LUAOBFUSACTOR_DECRYPT_STR_0("\150\251\21\64\145\254\220\6\76\132\182\224", "\227\222\148\99\37"), 2, 10, 6, LUAOBFUSACTOR_DECRYPT_STR_0("\18\113\109\222\246\37\87\64\222\252\58\85\90\226", "\153\83\50\50\150"));
+			CreateSlider(TargetPage, LUAOBFUSACTOR_DECRYPT_STR_0("\117\127\103\92\87\174\65\92\111\51\17\96", "\45\61\22\19\124\19\203"), 0, 100, 30, LUAOBFUSACTOR_DECRYPT_STR_0("\224\49\50\221\11\100\157\196\30\12\236", "\217\161\114\109\149\98\16"));
+			local function ToggleCXFly(state)
+				local FlatIdent_8BA1E = 0;
+				local FlatIdent_39764;
+				local Char;
+				local HRP;
+				local Hum;
+				local Hitbox;
+				local parts;
+				while true do
+					if (FlatIdent_8BA1E == 0) then
+						FlatIdent_39764 = 0;
+						Char = nil;
+						FlatIdent_8BA1E = 1;
+					end
+					if (FlatIdent_8BA1E == 2) then
+						Hitbox = nil;
+						parts = nil;
+						FlatIdent_8BA1E = 3;
+					end
+					if (FlatIdent_8BA1E == 1) then
+						HRP = nil;
+						Hum = nil;
+						FlatIdent_8BA1E = 2;
+					end
+					if (3 == FlatIdent_8BA1E) then
+						while true do
+							if (FlatIdent_39764 == 1) then
+								Hum = Char and Char:FindFirstChildOfClass(LUAOBFUSACTOR_DECRYPT_STR_0("\58\53\53\125\178\123\27\36", "\20\114\64\88\28\220"));
+								Hitbox = workspace:FindFirstChild(LUAOBFUSACTOR_DECRYPT_STR_0("\25\8\198\182\247\200", "\221\81\97\178\212\152\176")) and workspace.Hitbox:FindFirstChild(LP.Name);
+								FlatIdent_39764 = 2;
+							end
+							if (FlatIdent_39764 == 0) then
+								local FlatIdent_287B5 = 0;
+								while true do
+									if (FlatIdent_287B5 == 0) then
+										Char = LP.Character;
+										HRP = Char and Char:FindFirstChild(LUAOBFUSACTOR_DECRYPT_STR_0("\229\242\16\250\20\194\238\25\201\21\194\243\45\250\8\217", "\122\173\135\125\155"));
+										FlatIdent_287B5 = 1;
+									end
+									if (FlatIdent_287B5 == 1) then
+										FlatIdent_39764 = 1;
+										break;
+									end
+								end
+							end
+							if (FlatIdent_39764 == 3) then
+								for _, part in ipairs(parts) do
+									if part then
+										part.Anchored = false;
+										part.RotVelocity = Vector3.zero;
+										part.AssemblyAngularVelocity = Vector3.zero;
+										if state then
+											part.CanCollide = false;
+											local bv = part:FindFirstChild(LUAOBFUSACTOR_DECRYPT_STR_0("\190\238\46\134\25\61\209\166\247", "\168\228\161\96\217\95\81")) or Instance.new(LUAOBFUSACTOR_DECRYPT_STR_0("\249\222\42\69\25\82\215\222\45\85\59\78", "\55\187\177\78\60\79"));
+											bv.Name = LUAOBFUSACTOR_DECRYPT_STR_0("\23\225\113\212\96\195\153\15\248", "\224\77\174\63\139\38\175");
+											bv.MaxForce = Vector3.new(1000000000, 1000000000, 1000000000);
+											bv.Velocity = Vector3.zero;
+											bv.Parent = part;
+										else
+											part.CanCollide = true;
+											if part:FindFirstChild(LUAOBFUSACTOR_DECRYPT_STR_0("\190\110\118\17\162\77\65\12\178", "\78\228\33\56")) then
+												part.ZON_FlyBV:Destroy();
+											end
+											part.CFrame = CFrame.new(part.Position);
+										end
+									end
+								end
+								break;
+							end
+							if (FlatIdent_39764 == 2) then
+								local FlatIdent_C595 = 0;
+								while true do
+									if (FlatIdent_C595 == 1) then
+										FlatIdent_39764 = 3;
+										break;
+									end
+									if (FlatIdent_C595 == 0) then
+										if Hum then
+											Hum.PlatformStand = state;
+										end
+										parts = {HRP,Hitbox};
+										FlatIdent_C595 = 1;
+									end
+								end
+							end
+						end
+						break;
+					end
+				end
+			end
+			local function IsUnbreakable(gridX, gridY)
+				local FlatIdent_D79D = 0;
+				local FlatIdent_287B5;
+				local absoluteZ;
+				local checkPos;
+				local params;
+				local parts;
+				while true do
+					if (FlatIdent_D79D == 1) then
+						checkPos = nil;
+						params = nil;
+						FlatIdent_D79D = 2;
+					end
+					if (FlatIdent_D79D == 2) then
+						parts = nil;
+						while true do
+							local FlatIdent_5AB84 = 0;
+							while true do
+								if (FlatIdent_5AB84 == 1) then
+									if (FlatIdent_287B5 == 1) then
+										params = OverlapParams.new();
+										params.FilterDescendantsInstances = {LP.Character,workspace.CurrentCamera};
+										FlatIdent_287B5 = 2;
+									end
+									if (FlatIdent_287B5 == 3) then
+										for _, part in ipairs(parts) do
+											if part:IsA(LUAOBFUSACTOR_DECRYPT_STR_0("\236\127\161\6\181\207\108\166", "\229\174\30\210\99")) then
+												local FlatIdent_2E9CB = 0;
+												local pName;
+												local pParent;
+												while true do
+													if (FlatIdent_2E9CB == 1) then
+														if (string.find(pName, LUAOBFUSACTOR_DECRYPT_STR_0("\25\232\130\67\226\62\50", "\89\123\141\230\49\141\93")) or string.find(pParent, LUAOBFUSACTOR_DECRYPT_STR_0("\241\116\242\30\31\73\248", "\42\147\17\150\108\112")) or string.find(pName, LUAOBFUSACTOR_DECRYPT_STR_0("\11\169\34\109", "\136\111\198\77\31\135")) or string.find(pParent, LUAOBFUSACTOR_DECRYPT_STR_0("\6\6\168\68", "\201\98\105\199\54\221\132\119")) or string.find(pName, LUAOBFUSACTOR_DECRYPT_STR_0("\180\13\138\47", "\204\217\108\227\65\98\85"))) then
+															return true;
+														end
+														break;
+													end
+													if (FlatIdent_2E9CB == 0) then
+														pName = string.lower(part.Name);
+														pParent = (part.Parent and string.lower(part.Parent.Name)) or "";
+														FlatIdent_2E9CB = 1;
+													end
+												end
+											end
+										end
+										return false;
+									end
+									break;
+								end
+								if (FlatIdent_5AB84 == 0) then
+									if (FlatIdent_287B5 == 2) then
+										local FlatIdent_5B4A8 = 0;
+										while true do
+											if (FlatIdent_5B4A8 == 1) then
+												FlatIdent_287B5 = 3;
+												break;
+											end
+											if (FlatIdent_5B4A8 == 0) then
+												params.FilterType = Enum.RaycastFilterType.Exclude;
+												parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params);
+												FlatIdent_5B4A8 = 1;
+											end
+										end
+									end
+									if (FlatIdent_287B5 == 0) then
+										local FlatIdent_49280 = 0;
+										while true do
+											if (FlatIdent_49280 == 0) then
+												absoluteZ = getgenv().AC_FixedZ or 0;
+												checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, absoluteZ);
+												FlatIdent_49280 = 1;
+											end
+											if (FlatIdent_49280 == 1) then
+												FlatIdent_287B5 = 1;
+												break;
+											end
+										end
+									end
+									FlatIdent_5AB84 = 1;
+								end
+							end
+						end
+						break;
+					end
+					if (0 == FlatIdent_D79D) then
+						FlatIdent_287B5 = 0;
+						absoluteZ = nil;
+						FlatIdent_D79D = 1;
+					end
+				end
+			end
+			local function NeedsBreaking(gridX, gridY)
+				local FlatIdent_20FB0 = 0;
+				local absoluteZ;
+				local checkPos;
+				local params;
+				local parts;
+				while true do
+					local FlatIdent_43BF7 = 0;
+					while true do
+						if (0 == FlatIdent_43BF7) then
+							if (FlatIdent_20FB0 == 4) then
+								return false;
+							end
+							if (FlatIdent_20FB0 == 1) then
+								checkPos = Vector3.new(gridX * getgenv().GridSize, gridY * getgenv().GridSize, absoluteZ);
+								params = OverlapParams.new();
+								FlatIdent_20FB0 = 2;
+							end
+							FlatIdent_43BF7 = 1;
+						end
+						if (FlatIdent_43BF7 == 1) then
+							if (0 == FlatIdent_20FB0) then
+								local FlatIdent_506A5 = 0;
+								while true do
+									if (FlatIdent_506A5 == 0) then
+										if getgenv().AC_Blacklist[gridX .. "," .. gridY] then
+											return false;
+										end
+										absoluteZ = getgenv().AC_FixedZ or 0;
+										FlatIdent_506A5 = 1;
+									end
+									if (FlatIdent_506A5 == 1) then
+										FlatIdent_20FB0 = 1;
+										break;
+									end
+								end
+							end
+							if (FlatIdent_20FB0 == 3) then
+								parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), Vector3.new(3, 3, 50), params);
+								for _, part in ipairs(parts) do
+									if part:IsA(LUAOBFUSACTOR_DECRYPT_STR_0("\124\194\230\224\28\193\76\215", "\160\62\163\149\133\76")) then
+										local FlatIdent_8BC55 = 0;
+										local pName;
+										local pParent;
+										while true do
+											repeat
+												if (FlatIdent_8BC55 == 1) then
+													if (string.find(pName, LUAOBFUSACTOR_DECRYPT_STR_0("\210\175\2\61", "\163\182\192\109\79")) or string.find(pParent, LUAOBFUSACTOR_DECRYPT_STR_0("\48\41\15\210", "\149\84\70\96\160")) or string.find(pName, LUAOBFUSACTOR_DECRYPT_STR_0("\43\22\12\250\54", "\141\88\102\109"))) then
+														do
+															break;
+														end
+													end
+													return true;
+												end
+												if (FlatIdent_8BC55 == 0) then
+													pName = string.lower(part.Name);
+													pParent = (part.Parent and string.lower(part.Parent.Name)) or "";
+													FlatIdent_8BC55 = 1;
+												end
+											until true 
+										end
+									end
+								end
+								FlatIdent_20FB0 = 4;
+							end
+							FlatIdent_43BF7 = 2;
+						end
+						if (FlatIdent_43BF7 == 2) then
+							if (FlatIdent_20FB0 == 2) then
+								local FlatIdent_37555 = 0;
+								while true do
+									if (FlatIdent_37555 == 1) then
+										FlatIdent_20FB0 = 3;
+										break;
+									end
+									if (FlatIdent_37555 == 0) then
+										params.FilterDescendantsInstances = {LP.Character,workspace.CurrentCamera};
+										params.FilterType = Enum.RaycastFilterType.Exclude;
+										FlatIdent_37555 = 1;
+									end
+								end
+							end
+							break;
+						end
+					end
+				end
+			end
+			local function ServerSyncedGlide(targetPos)
+				local FlatIdent_2DB3E = 0;
+				local FlatIdent_98388;
+				local Hitbox;
+				local HRP;
+				while true do
+					if (FlatIdent_2DB3E == 1) then
+						HRP = nil;
+						while true do
+							if (FlatIdent_98388 == 1) then
+								if (not Hitbox or not HRP) then
+									return;
+								end
+								while getgenv().AutoClearEnabled do
+									local currentPos = Hitbox.Position;
+									local distance = (targetPos - currentPos).Magnitude;
+									if (distance <= getgenv().GlideSpeed) then
+										Hitbox.CFrame = CFrame.new(targetPos);
+										HRP.CFrame = CFrame.new(targetPos);
+										if PlayerMovement then
+											pcall(function()
+												PlayerMovement.Position = targetPos;
+											end);
+										end
+										break;
+									else
+										local FlatIdent_8BC55 = 0;
+										local nextPos;
+										while true do
+											if (FlatIdent_8BC55 == 1) then
+												HRP.CFrame = CFrame.new(nextPos);
+												if PlayerMovement then
+													pcall(function()
+														PlayerMovement.Position = nextPos;
+													end);
+												end
+												break;
+											end
+											if (FlatIdent_8BC55 == 0) then
+												nextPos = currentPos + ((targetPos - currentPos).Unit * getgenv().GlideSpeed);
+												Hitbox.CFrame = CFrame.new(nextPos);
+												FlatIdent_8BC55 = 1;
+											end
+										end
+									end
+									task.wait();
+								end
+								break;
+							end
+							if (FlatIdent_98388 == 0) then
+								local FlatIdent_270C = 0;
+								while true do
+									if (FlatIdent_270C == 0) then
+										Hitbox = workspace:FindFirstChild(LUAOBFUSACTOR_DECRYPT_STR_0("\155\90\222\114\21\37", "\161\211\51\170\16\122\93\53")) and workspace.Hitbox:FindFirstChild(LP.Name);
+										HRP = LP.Character and LP.Character:FindFirstChild(LUAOBFUSACTOR_DECRYPT_STR_0("\211\187\191\41\245\161\187\44\201\161\189\60\203\175\160\60", "\72\155\206\210"));
+										FlatIdent_270C = 1;
+									end
+									if (FlatIdent_270C == 1) then
+										FlatIdent_98388 = 1;
+										break;
+									end
+								end
+							end
+						end
+						break;
+					end
+					if (FlatIdent_2DB3E == 0) then
+						FlatIdent_98388 = 0;
+						Hitbox = nil;
+						FlatIdent_2DB3E = 1;
+					end
+				end
+			end
+			local isRunning = false;
+			task.spawn(function()
+				while task.wait(0.2) do
+					if (getgenv().AutoClearEnabled and not isRunning) then
+						isRunning = true;
+						local initialHitbox = workspace:FindFirstChild(LUAOBFUSACTOR_DECRYPT_STR_0("\110\115\64\12\60\94", "\83\38\26\52\110")) and workspace.Hitbox:FindFirstChild(LP.Name);
+						if (getgenv().AC_ResumeX == nil) then
+							local FlatIdent_6D9D2 = 0;
+							while true do
+								if (FlatIdent_6D9D2 == 0) then
+									getgenv().AC_ResumeY = getgenv().AC_StartY;
+									getgenv().AC_ArahKanan = true;
+									FlatIdent_6D9D2 = 1;
+								end
+								if (FlatIdent_6D9D2 == 1) then
+									getgenv().AC_ResumeX = getgenv().AC_StartX;
+									if initialHitbox then
+										getgenv().AC_FixedZ = initialHitbox.Position.Z;
+									end
+									break;
+								end
+							end
+						end
+						local absoluteZ = getgenv().AC_FixedZ or 0;
+						ToggleCXFly(true);
+						while getgenv().AutoClearEnabled and (getgenv().AC_ResumeY >= getgenv().AC_EndY) do
+							local blockTargetY = getgenv().AC_ResumeY - 1;
+							local stepX = (getgenv().AC_ArahKanan and 1) or -1;
+							local isLayerSatu = getgenv().AC_ResumeY >= 37;
+							while getgenv().AutoClearEnabled do
+								local currentX = getgenv().AC_ResumeX;
+								if ((getgenv().AC_ArahKanan and (currentX > getgenv().AC_EndX)) or (not getgenv().AC_ArahKanan and (currentX < getgenv().AC_StartX))) then
+									break;
+								end
+								if IsUnbreakable(currentX, blockTargetY) then
+									getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true;
+								elseif NeedsBreaking(currentX, blockTargetY) then
+									local FlatIdent_22216 = 0;
+									local Hitbox;
+									local HRP;
+									local finalPos;
+									local failsafe;
+									while true do
+										if (FlatIdent_22216 == 0) then
+											local FlatIdent_322B4 = 0;
+											while true do
+												if (FlatIdent_322B4 == 1) then
+													finalPos = nil;
+													if isLayerSatu then
+														finalPos = Vector3.new(currentX * getgenv().GridSize, ((blockTargetY + 1) * getgenv().GridSize) + getgenv().AC_HoverHeight, absoluteZ);
+													else
+														finalPos = Vector3.new((currentX - stepX) * getgenv().GridSize, blockTargetY * getgenv().GridSize, absoluteZ);
+													end
+													FlatIdent_322B4 = 2;
+												end
+												if (FlatIdent_322B4 == 2) then
+													FlatIdent_22216 = 1;
+													break;
+												end
+												if (FlatIdent_322B4 == 0) then
+													Hitbox = workspace:FindFirstChild(LUAOBFUSACTOR_DECRYPT_STR_0("\112\30\51\68\87\15", "\38\56\119\71")) and workspace.Hitbox:FindFirstChild(LP.Name);
+													HRP = LP.Character and LP.Character:FindFirstChild(LUAOBFUSACTOR_DECRYPT_STR_0("\219\250\85\215\43\89\250\235\106\217\42\66\195\238\74\194", "\54\147\143\56\182\69"));
+													FlatIdent_322B4 = 1;
+												end
+											end
+										end
+										if (FlatIdent_22216 == 1) then
+											local FlatIdent_499B1 = 0;
+											while true do
+												if (FlatIdent_499B1 == 1) then
+													if HRP then
+														HRP.Anchored = true;
+													end
+													failsafe = 0;
+													FlatIdent_499B1 = 2;
+												end
+												if (2 == FlatIdent_499B1) then
+													FlatIdent_22216 = 2;
+													break;
+												end
+												if (FlatIdent_499B1 == 0) then
+													ServerSyncedGlide(finalPos);
+													if Hitbox then
+														Hitbox.Anchored = true;
+													end
+													FlatIdent_499B1 = 1;
+												end
+											end
+										end
+										if (FlatIdent_22216 == 2) then
+											while NeedsBreaking(currentX, blockTargetY) and getgenv().AutoClearEnabled do
+												if Hitbox then
+													Hitbox.CFrame = CFrame.new(finalPos);
+												end
+												if HRP then
+													HRP.CFrame = CFrame.new(finalPos);
+												end
+												if PlayerMovement then
+													pcall(function()
+														PlayerMovement.Position = finalPos;
+													end);
+												end
+												if IsUnbreakable(currentX, blockTargetY) then
+													break;
+												end
+												RemoteBreak:FireServer(Vector2.new(currentX, blockTargetY));
+												failsafe = failsafe + 1;
+												if (failsafe > getgenv().AC_MaxHits) then
+													getgenv().AC_Blacklist[currentX .. "," .. blockTargetY] = true;
+													break;
+												end
+												task.wait(getgenv().AC_HitDelay / 1000);
+											end
+											if Hitbox then
+												Hitbox.Anchored = false;
+											end
+											if HRP then
+												HRP.Anchored = false;
+											end
+											break;
+										end
+									end
+								end
+								getgenv().AC_ResumeX = getgenv().AC_ResumeX + stepX;
+							end
+							if getgenv().AutoClearEnabled then
+								local FlatIdent_25A9F = 0;
+								local FlatIdent_21DDC;
+								while true do
+									if (FlatIdent_25A9F == 0) then
+										FlatIdent_21DDC = 0;
+										while true do
+											if (FlatIdent_21DDC == 1) then
+												getgenv().AC_ResumeX = (getgenv().AC_ArahKanan and getgenv().AC_StartX) or getgenv().AC_EndX;
+												break;
+											end
+											if (FlatIdent_21DDC == 0) then
+												local FlatIdent_72421 = 0;
+												while true do
+													if (FlatIdent_72421 == 1) then
+														FlatIdent_21DDC = 1;
+														break;
+													end
+													if (FlatIdent_72421 == 0) then
+														getgenv().AC_ResumeY = getgenv().AC_ResumeY - 1;
+														getgenv().AC_ArahKanan = not getgenv().AC_ArahKanan;
+														FlatIdent_72421 = 1;
+													end
+												end
+											end
+										end
+										break;
+									end
+								end
+							end
+						end
+						isRunning = false;
+						ToggleCXFly(false);
+					end
+				end
+			end);
+		else
+			local sdawdwqdq = obf_arg[1];
+		end
+	end
+	if (obf_tonumber(obf_stringmatch(obf_stringmatch(({obf_pcall(obf_wrapperfunc, nil)})[2], ":%d+:"), "%d+")) == 1) then
+		return obf_wrapperfunc({});
+	else
+		return obf_adjnqwidqwjhdpoq();
+	end
+end
+return obf_adjnqwidqwjhdpoq();
